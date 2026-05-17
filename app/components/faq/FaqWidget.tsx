@@ -7,7 +7,7 @@ export default function FaqWidget() {
   const [selectedCategory, setSelectedCategory] = useState("전체");
   const [openId, setOpenId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [recentQuestions, setRecentQuestions] = useState<any[]>([]);
 
   useEffect(() => {
@@ -62,11 +62,12 @@ export default function FaqWidget() {
     });
   }, [faq, selectedCategory, search]);
 
+  /* 플로팅 버튼 */
   if (!isOpen) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-6 bottom-6 w-[92px] h-[108px] rounded-[28px] bg-white border border-[#ece7df] shadow-[0_8px_30px_rgba(0,0,0,0.08)] flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+        className="fixed right-6 bottom-6 z-50 w-[92px] h-[108px] rounded-[28px] bg-white border border-[#ece7df] shadow-[0_8px_30px_rgba(0,0,0,0.08)] flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02]"
       >
 
         <div className="w-[52px] h-[52px] rounded-[18px] bg-[#FFF4B8] flex items-center justify-center border border-[#f3e39c]">
@@ -96,7 +97,7 @@ export default function FaqWidget() {
   }
 
   return (
-    <div className="fixed right-6 bottom-6 w-[440px] h-[90vh] bg-[#f8f7f4] rounded-[34px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#ebe7df] overflow-hidden flex flex-col font-['Pretendard']">
+    <div className="fixed right-6 bottom-6 z-50 w-[460px] h-[90vh] bg-[#f8f7f4] rounded-[34px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#ebe7df] overflow-hidden flex flex-col font-['Pretendard']">
 
       {/* 헤더 */}
       <div className="bg-white px-6 py-6 border-b border-[#e8e4dc] flex items-start justify-between">
