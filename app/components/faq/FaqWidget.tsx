@@ -1,572 +1,375 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-
-type FAQ = {
-  id: number;
-  category: string;
-  question: string;
-  answer: string;
-};
 
 export default function FaqWidget() {
-  /*
-  =========================
-  상태관리
-  =========================
-  */
-
-  const [isOpen, setIsOpen] = useState(false);
-
-  const [faqs, setFaqs] = useState<FAQ[]>([]);
-
-  const [selectedCategory, setSelectedCategory] = useState("");
-
-  const [selectedFaq, setSelectedFaq] = useState<FAQ | null>(null);
-
-  const [searchText, setSearchText] = useState("");
-
-  /*
-  =========================
-  FAQ API
-  =========================
-  */
+  const [faq, setFaq] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("전체");
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [isOpen, setIsOpen] = useState(true);
+  const [recentQuestions, setRecentQuestions] = useState<any[]>([]);
 
   useEffect(() => {
     fetch(
-      "https://script.google.com/macros/s/AKfycbySZO6JhOmM98uUuZ4Bvl2XnJd090f0JiNQen1dyg7PjXxogtRpv9Mtxb4BxrfE2mnq/exec"
+      "https://script.google.com/macros/s/AKfycbzzJmzvecQ9_W7sGh3bXKVSxZlLJ6B2l9HimstJUEdeZjD2iUzU0g0IvOkJ8zgTMtdN/exec"
     )
       .then((res) => res.json())
       .then((data) => {
-        console.log("FAQ 데이터:", data);
-
-        setFaqs(data.faq || []);
+        setFaq(data.faq || []);
       })
-      .catch((err) => {
-        console.error("FAQ API 오류:", err);
+      .catch((error) => {
+        console.error(error);
       });
   }, []);
 
-  /*
-  =========================
-  카테고리
-  =========================
-  */
+  const categories = [
+    "전체",
+    "비용 문의",
+    "캠프 모집 및 신청 문의",
+    "일정 문의",
+    "캠프 프로그램 문의",
+    "주차 문의",
+    "직접 문의",
+  ];
 
-  const categories = useMemo(() => {
-    return [...new Set(faqs.map((item) => item.category))];
-  }, [faqs]);
+  const normalize = (text: string) =>
+    text
+      ?.toLowerCase()
+      .replace(/\s/g, "")
+      .replace(/문의/g, "");
 
-  /*
-  =========================
-  추천 질문
-  =========================
-  */
+  const filteredFaq = useMemo(() => {
+    const keyword = normalize(search);
 
-  const recommendedFaqs = useMemo(() => {
-    if (!searchText.trim()) return [];
+    return faq.filter((item) => {
+      const category = normalize(item["대분류"] || "");
+      const question = normalize(item["질문"] || "");
+      const answer = normalize(item["답변"] || "");
 
-    return faqs.filter((item) => {
-      return (
-        item.question.includes(searchText) ||
-        item.answer.includes(searchText) ||
-        item.category.includes(searchText)
-      );
+      const categoryMatch =
+        selectedCategory === "전체"
+          ? true
+          : item["대분류"] === selectedCategory;
+
+      const searchMatch =
+        keyword === "" ||
+        category.includes(keyword) ||
+        question.includes(keyword) ||
+        answer.includes(keyword);
+
+      return categoryMatch && searchMatch;
     });
-  }, [searchText, faqs]);
-
-  /*
-  =========================
-  선택 카테고리 질문
-  =========================
-  */
-
-  const categoryFaqs = useMemo(() => {
-    return faqs.filter(
-      (item) => item.category === selectedCategory
-    );
-  }, [selectedCategory, faqs]);
-
-  /*
-  =========================
-  닫힌 상태
-  =========================
-  */
+  }, [faq, selectedCategory, search]);
 
   if (!isOpen) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="
-          fixed
-          bottom-6
-          right-6
-          bg-[#F8F7F2]
-          border
-          border-gray-200
-          rounded-[30px]
-          shadow-2xl
-          px-4
-          py-4
-          z-[9999]
-          hover:scale-105
-          transition
-        "
+        className="fixed right-6 bottom-6 w-[92px] h-[108px] rounded-[28px] bg-white border border-[#ece7df] shadow-[0_8px_30px_rgba(0,0,0,0.08)] flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02]"
       >
-        <div className="flex flex-col items-center gap-2">
-          <Image
+
+        <div className="w-[52px] h-[52px] rounded-[18px] bg-[#FFF4B8] flex items-center justify-center border border-[#f3e39c]">
+
+          <img
             src="/diki-character.png"
-            alt="디키"
-            width={60}
-            height={60}
+            alt="디키캐릭터"
+            className="w-[34px] h-[34px] object-contain"
           />
 
-          <p
-            className="
-              text-[15px]
-              font-bold
-              leading-tight
-              text-[#111827]
-            "
-          >
+        </div>
+
+        <div className="text-center leading-tight">
+
+          <p className="text-[14px] font-bold text-[#111111]">
             디키캠프
-            <br />
+          </p>
+
+          <p className="text-[13px] text-[#777777] font-medium mt-1">
             문의
           </p>
+
         </div>
+
       </button>
     );
   }
 
-  /*
-  =========================
-  열린 상태
-  =========================
-  */
-
   return (
-    <>
-      {/* 배경 */}
-      <div
-        className="
-          fixed
-          inset-0
-          bg-black/30
-          z-40
-          pointer-events-none
-        "
-      />
+    <div className="fixed right-6 bottom-6 w-[440px] h-[90vh] bg-[#f8f7f4] rounded-[34px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#ebe7df] overflow-hidden flex flex-col font-['Pretendard']">
 
-      {/* 패널 */}
-      <div
-        className="
-          fixed
-          bottom-0
-          left-0
-          right-0
-          h-[92vh]
-          bg-[#F8F7F2]
-          z-50
-          rounded-t-[34px]
-          shadow-2xl
-          overflow-hidden
-          flex
-          flex-col
-        "
-      >
-        {/* 핸들 */}
-        <div className="pt-3 pb-2 flex justify-center">
-          <div className="w-14 h-[5px] rounded-full bg-gray-300" />
-        </div>
+      {/* 헤더 */}
+      <div className="bg-white px-6 py-6 border-b border-[#e8e4dc] flex items-start justify-between">
 
-        {/* 헤더 */}
-        <div
-          className="
-            px-6
-            py-5
-            border-b
-            border-gray-200
-            flex
-            items-center
-            justify-between
-          "
-        >
-          {/* 뒤로가기 */}
-          <button
-            onClick={() => {
-              setSelectedCategory("");
-              setSelectedFaq(null);
-              setSearchText("");
-            }}
-            className="
-              w-12
-              h-12
-              rounded-full
-              bg-white
-              shadow
-              border
-              border-gray-200
-              text-[24px]
-            "
-          >
-            ←
-          </button>
-
-          {/* 타이틀 */}
-          <h2
-            className="
-              text-[28px]
-              font-extrabold
-              tracking-[-0.03em]
-              text-[#111827]
-            "
-          >
+        <div>
+          <h1 className="text-[24px] font-bold text-[#111111] tracking-[-0.02em]">
             디키캠프 FAQ
-          </h2>
+          </h1>
 
-          {/* 종료 */}
-          <button
-            onClick={() => setIsOpen(false)}
-            className="
-              w-12
-              h-12
-              rounded-full
-              bg-white
-              shadow
-              border
-              border-gray-200
-              text-[24px]
-            "
-          >
-            ×
-          </button>
+          <p className="mt-3 text-[13px] text-[#8d8d8d] font-medium">
+            빠르게 답변을 확인해보세요
+          </p>
         </div>
 
-        {/* 본문 */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          {/* 메인 첫 화면 */}
-          {!selectedCategory && !selectedFaq && (
-            <>
-              {/* 캐릭터 */}
-              <div className="flex items-start gap-4 mb-6">
-                <Image
-                  src="/diki-character.png"
-                  alt="디키"
-                  width={74}
-                  height={74}
-                />
+        <button
+          onClick={() => {
+            setIsOpen(false);
+            setOpenId(null);
+            setSearch("");
+            setSelectedCategory("전체");
+            setRecentQuestions([]);
+          }}
+          className="w-12 h-12 rounded-full bg-[#f5f5f3] text-[30px] text-[#7c7c7c] flex items-center justify-center"
+        >
+          ×
+        </button>
 
-                <div>
-                  <h3
-                    className="
-                      text-[24px]
-                      font-extrabold
-                      leading-snug
-                      text-[#111827]
-                    "
-                  >
-                    안녕하세요 :)
-                    <br />
-                    무엇이 궁금하신가요?
-                  </h3>
+      </div>
 
-                  <p
-                    className="
-                      text-[15px]
-                      text-gray-500
-                      mt-2
-                    "
-                  >
-                    선택하거나 직접 질문해보세요.
-                  </p>
-                </div>
-              </div>
+      {/* 스크롤 */}
+      <div className="flex-1 overflow-y-auto">
 
-              {/* 검색 */}
-              <div
-                className="
-                  bg-white
-                  rounded-[24px]
-                  shadow-md
-                  border
-                  border-gray-200
-                  px-5
-                  py-4
-                  mb-8
-                  flex
-                  items-center
-                  gap-3
-                "
-              >
-                <input
-                  type="text"
-                  placeholder="예: 가격 얼마인가요?"
-                  value={searchText}
-                  onChange={(e) =>
-                    setSearchText(e.target.value)
-                  }
-                  className="
-                    flex-1
-                    outline-none
-                    text-[17px]
-                    bg-transparent
-                  "
-                />
+        {/* 상단 카드 */}
+        <div className="p-6">
 
-                <div
-                  className="
-                    text-gray-400
-                    text-[20px]
-                  "
-                >
-                  ✈
-                </div>
-              </div>
+          <div className="bg-white rounded-[34px] border border-[#ece7df] px-7 pt-7 pb-8 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
 
-              {/* 추천 질문 */}
-              {recommendedFaqs.length > 0 && (
-                <div className="mb-10">
-                  <p
-                    className="
-                      text-[15px]
-                      font-bold
-                      text-[#FF6B00]
-                      mb-4
-                    "
-                  >
-                    추천 질문
-                  </p>
+            <div className="w-[74px] h-[74px] rounded-[24px] bg-[#FFF4B8] flex items-center justify-center border border-[#f3e39c] shadow-sm">
 
-                  <div className="flex flex-col gap-3">
-                    {recommendedFaqs.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setSelectedFaq(item);
-                        }}
-                        className="
-                          bg-white
-                          rounded-[22px]
-                          border
-                          border-gray-200
-                          px-5
-                          py-4
-                          text-left
-                          shadow-sm
-                        "
-                      >
-                        <p
-                          className="
-                            text-[16px]
-                            font-semibold
-                            text-[#111827]
-                          "
-                        >
-                          {item.question}
-                        </p>
+              <img
+                src="/diki-character.png"
+                alt="디키캐릭터"
+                className="w-[46px] h-[46px] object-contain"
+              />
 
-                        <p
-                          className="
-                            text-[13px]
-                            text-gray-500
-                            mt-1
-                          "
-                        >
-                          {item.category}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+            </div>
 
-              {/* 빠른 선택 */}
-              <div>
-                <p
-                  className="
-                    text-[15px]
-                    font-bold
-                    text-[#FF6B00]
-                    mb-4
-                  "
-                >
-                  빠른 선택
-                </p>
+            <h2 className="mt-7 text-[22px] font-bold leading-[1.45] text-[#111111] tracking-[-0.02em]">
+              안녕하세요.
+              <br />
+              디키캠프 FAQ입니다.
+            </h2>
 
-                <div className="flex flex-col gap-5">
-                  {categories.map((category) => (
-                    <button
-                      key={category}
-                      onClick={() =>
-                        setSelectedCategory(category)
-                      }
-                      className="
-                        bg-white
-                        rounded-[28px]
-                        border
-                        border-gray-200
-                        p-6
-                        text-left
-                        shadow-sm
-                        flex
-                        items-center
-                        justify-between
-                        hover:shadow-md
-                        transition
-                      "
-                    >
-                      <div>
-                        <p
-                          className="
-                            text-[14px]
-                            font-bold
-                            text-[#FF6B00]
-                            mb-2
-                          "
-                        >
-                          추천 메뉴
-                        </p>
+            <p className="mt-6 text-[16px] leading-[1.9] text-[#707070] font-medium">
+              궁금한 카테고리를 선택하거나
+              <br />
+              검색으로 빠르게 찾아보세요.
+            </p>
 
-                        <h3
-                          className="
-                            text-[22px]
-                            font-extrabold
-                            text-[#111827]
-                          "
-                        >
-                          {category}
-                        </h3>
-                      </div>
+          </div>
 
-                      <span
-                        className="
-                          text-[34px]
-                          text-gray-300
-                        "
-                      >
-                        →
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+        </div>
 
-          {/* 카테고리 질문 */}
-          {selectedCategory && !selectedFaq && (
-            <div>
-              <p
-                className="
-                  text-[15px]
-                  font-bold
-                  text-[#FF6B00]
-                  mb-5
-                "
-              >
-                {selectedCategory}
-              </p>
+        {/* 검색 */}
+        <div className="px-6">
 
-              <div className="flex flex-col gap-4">
-                {categoryFaqs.map((item) => (
+          <div className="bg-white h-[64px] rounded-[24px] border border-[#ebe6de] px-6 flex items-center gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+
+            <span className="text-[20px]">
+              🔎
+            </span>
+
+            <input
+              type="text"
+              placeholder="궁금한 내용을 검색해보세요"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSelectedCategory("전체");
+              }}
+              className="w-full bg-transparent outline-none text-[15px] text-[#111111] placeholder:text-[#b5b5b5] font-medium"
+            />
+
+          </div>
+
+        </div>
+
+        {/* 최근 질문 */}
+        <div className="px-6 mt-9">
+
+          <h3 className="text-[15px] font-bold text-[#555555] mb-4">
+            최근 본 질문
+          </h3>
+
+          <div className="flex gap-3 overflow-x-auto pb-2">
+
+            {recentQuestions.length > 0
+              ? recentQuestions.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => setSelectedFaq(item)}
-                    className="
-                      bg-white
-                      rounded-[24px]
-                      border
-                      border-gray-200
-                      p-5
-                      text-left
-                      shadow-sm
-                    "
+                    onClick={() => {
+                      setSelectedCategory(item["대분류"]);
+                      setOpenId(item.id);
+                    }}
+                    className="bg-white border border-[#ebe6de] rounded-full px-5 h-[44px] text-[13px] whitespace-nowrap shadow-sm font-medium text-[#333333]"
                   >
-                    <p
-                      className="
-                        text-[18px]
-                        font-bold
-                        text-[#111827]
-                      "
-                    >
-                      {item.question}
-                    </p>
+                    {item["질문"]}
+                  </button>
+                ))
+              : faq.slice(0, 2).map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setSelectedCategory(item["대분류"]);
+                      setOpenId(item.id);
+                    }}
+                    className="bg-white border border-[#ebe6de] rounded-full px-5 h-[44px] text-[13px] whitespace-nowrap shadow-sm font-medium text-[#333333]"
+                  >
+                    {item["질문"]}
                   </button>
                 ))}
-              </div>
-            </div>
-          )}
 
-          {/* 답변 */}
-          {selectedFaq && (
-            <div
-              className="
-                bg-white
-                rounded-[28px]
-                border
-                border-gray-200
-                p-6
-                shadow-sm
-              "
-            >
-              <p
-                className="
-                  text-[14px]
-                  font-bold
-                  text-[#FF6B00]
-                  mb-3
-                "
-              >
-                {selectedFaq.category}
-              </p>
+          </div>
 
-              <h3
-                className="
-                  text-[24px]
-                  font-extrabold
-                  text-[#111827]
-                  leading-snug
-                  mb-5
-                "
-              >
-                {selectedFaq.question}
-              </h3>
-
-              <div
-                className="
-                  text-[18px]
-                  leading-[1.9]
-                  text-gray-700
-                  whitespace-pre-line
-                "
-              >
-                {selectedFaq.answer}
-              </div>
-
-              {/* 문의 버튼 */}
-              <a
-                href="https://tally.so/r/eq02Qk"
-                target="_blank"
-                className="
-                  mt-8
-                  w-full
-                  bg-[#FF6B00]
-                  text-white
-                  rounded-2xl
-                  py-4
-                  text-center
-                  font-bold
-                  text-[17px]
-                  block
-                "
-              >
-                추가 문의하기
-              </a>
-            </div>
-          )}
         </div>
+
+        {/* 카테고리 */}
+        <div className="px-6 mt-8 flex flex-wrap gap-3">
+
+          {categories.map((category) => (
+            <button
+              key={category}
+              onClick={() => {
+                setSelectedCategory(category);
+                setSearch("");
+              }}
+              className={`h-[52px] px-6 rounded-full border text-[14px] font-semibold transition-all shadow-sm
+              ${
+                selectedCategory === category
+                  ? "bg-[#FFE66D] border-[#f2d85d] text-[#111111]"
+                  : "bg-white border-[#ebe6de] text-[#444444]"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+
+        </div>
+
+        {/* 타이틀 */}
+        <div className="px-6 mt-11">
+
+          <h2 className="text-[30px] font-bold text-[#111111] tracking-[-0.03em]">
+            {search ? "검색 결과" : selectedCategory}
+          </h2>
+
+          <p className="mt-3 text-[14px] text-[#7d7d7d]">
+            자주 묻는 질문을 확인해보세요.
+          </p>
+
+        </div>
+
+        {/* FAQ */}
+        <div className="p-6 space-y-5">
+
+          {filteredFaq.map((item) => (
+            <div
+              key={item.id}
+              className="bg-white border border-[#ebe6de] rounded-[30px] shadow-[0_4px_20px_rgba(0,0,0,0.04)] overflow-hidden"
+            >
+
+              <button
+                onClick={() => {
+                  setOpenId(openId === item.id ? null : item.id);
+
+                  const updatedRecent = [
+                    item,
+                    ...recentQuestions.filter((q) => q.id !== item.id),
+                  ].slice(0, 2);
+
+                  setRecentQuestions(updatedRecent);
+                }}
+                className="w-full px-7 py-6 text-left flex items-start justify-between gap-4"
+              >
+
+                <div>
+
+                  <p className="text-[11px] text-[#a2a2a2] font-semibold">
+                    {item["대분류"]}
+                  </p>
+
+                  <h3 className="mt-3 text-[18px] leading-[1.6] font-bold text-[#111111] tracking-[-0.02em]">
+                    {item["질문"]}
+                  </h3>
+
+                </div>
+
+                <div className="text-[28px] text-[#7f7f7f] leading-none mt-1">
+                  {openId === item.id ? "−" : "+"}
+                </div>
+
+              </button>
+
+              {openId === item.id && (
+
+                <div className="px-7 pb-7 border-t border-[#f0ece5] bg-[#fffdf9]">
+
+                  <div className="pt-7 text-[15px] leading-[2] text-[#555555] whitespace-pre-line font-medium">
+                    {item["답변"]
+                      ?.replace(/https?:\/\/\S+/g, "")
+                      ?.replace(/얼리버드 알림 신청\s*:/g, "")
+                      ?.replace(/기존 참여자 특별 혜택가 신청\s*:/g, "")
+                    }
+                  </div>
+
+                  {(
+                    item["질문"]?.includes("예약 오픈 알림") ||
+                    item["질문"]?.includes("예약 오픈 알림 링크") ||
+                    item["질문"]?.includes("예약 오픈 일정")
+                  ) && (
+
+                    <div className="mt-7 space-y-3">
+
+                      <a
+                        href="https://forms.gle/xqJi7gUYcmr5TQjg9"
+                        target="_blank"
+                        className="w-full h-[58px] rounded-[22px] bg-[#FFE66D] text-[#111111] font-bold text-[15px] flex items-center justify-center shadow-sm"
+                      >
+                        얼리버드 알림 신청
+                      </a>
+
+                      <a
+                        href="https://forms.gle/yZrexPjTaUTQ38zQA"
+                        target="_blank"
+                        className="w-full h-[58px] rounded-[22px] bg-[#FFE66D] text-[#111111] font-bold text-[15px] flex items-center justify-center shadow-sm"
+                      >
+                        기존 참가자 특별 혜택가 신청
+                      </a>
+
+                    </div>
+
+                  )}
+
+                </div>
+
+              )}
+
+            </div>
+          ))}
+
+          {filteredFaq.length === 0 && (
+            <div className="text-center text-[#888888] py-12 text-[15px]">
+              검색 결과가 없습니다.
+            </div>
+          )}
+
+        </div>
+
       </div>
-    </>
+
+      {/* 문의 */}
+      <div className="bg-white border-t border-[#ebe7df] p-5">
+
+        <a
+          href="https://forms.gle/kLsuSKLbVSa9sE1B8"
+          target="_blank"
+          className="w-full h-[60px] rounded-[24px] bg-[#FFE66D] text-[#111111] font-bold text-[17px] flex items-center justify-center shadow-sm"
+        >
+          문의 남기기
+        </a>
+
+      </div>
+
+    </div>
   );
 }
