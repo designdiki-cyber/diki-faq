@@ -319,7 +319,7 @@ export default function FaqWidget() {
 
         {/* ══ FAB ══ */}
         {!isOpen&&(
-          <div className="dq-fab" style={{position:"fixed",bottom:"320px",right:"20px",zIndex:9999}}>
+          <div className="dq-fab" style={{position:"fixed",bottom:"320px",right:"52px",zIndex:9999}}>
             {/* 왼쪽 말풍선 라벨 */}
             <div style={{
               position:"absolute",right:"88px",top:"50%",transform:"translateY(-50%)",
@@ -759,7 +759,7 @@ export default function FaqWidget() {
                           <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
                             borderRadius:"50%",background:"rgba(255,255,255,.28)",pointerEvents:"none"}}/>
                           {/* 카테고리명 */}
-                          <div style={{fontSize:"11px",fontWeight:900,color:p.text,fontFamily:"'Nunito',sans-serif",
+                          <div style={{fontSize:"13px",fontWeight:900,color:p.text,fontFamily:"'Nunito','Noto Sans KR',sans-serif",
                             lineHeight:1.3,wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>
                             {cat}
                           </div>
