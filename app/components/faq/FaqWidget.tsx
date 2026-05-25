@@ -319,10 +319,10 @@ export default function FaqWidget() {
 
         {/* ══ FAB ══ */}
         {!isOpen&&(
-          <div className="dq-fab" style={{position:"fixed",bottom:"200px",right:"60px",zIndex:9999}}>
+          <div className="dq-fab" style={{position:"fixed",bottom:"320px",right:"20px",zIndex:9999}}>
             {/* 왼쪽 말풍선 라벨 */}
             <div style={{
-              position:"absolute",right:"82px",top:"50%",transform:"translateY(-50%)",
+              position:"absolute",right:"88px",top:"50%",transform:"translateY(-50%)",
               background:"#fff",borderRadius:"14px 14px 4px 14px",
               padding:"8px 14px",
               boxShadow:"0 4px 18px rgba(0,0,0,.13)",
@@ -391,7 +391,7 @@ export default function FaqWidget() {
                 transition:isDragging?"none":"box-shadow .2s ease",
               }:{
                 left:0,right:0,bottom:0,
-                height:"min(94dvh, 94vh)",
+                height:"100dvh",
                 borderRadius:"28px 28px 0 0",
                 boxShadow:"0 -10px 44px rgba(60,50,0,.14)",
               }),
@@ -402,7 +402,7 @@ export default function FaqWidget() {
               style={{
                 flexShrink:0,
                 background:"linear-gradient(135deg,#FFF176 0%,#FFE234 100%)",
-                padding:"18px 20px 20px",
+                padding:"14px 18px 16px",
                 position:"relative",overflow:"hidden",
                 cursor:isDesktop?"grab":"default",userSelect:"none",
               }}>
@@ -571,8 +571,8 @@ export default function FaqWidget() {
             )}
 
             {/* ── 스크롤 본문 ── */}
-            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"14px 18px 8px",
-              display:"flex",flexDirection:"column",gap:"8px"}}>
+            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"10px 16px 6px",
+              display:"flex",flexDirection:"column",gap:"6px"}}>
 
               {/* 로딩 */}
               {loading&&(
@@ -658,7 +658,7 @@ export default function FaqWidget() {
                     background:"rgba(255,255,255,.82)",
                     borderRadius:"16px",
                     border:"1.5px solid rgba(255,215,0,.25)",
-                    padding:"7px 12px 8px",
+                    padding:"6px 12px 7px",
                     boxShadow:"0 2px 10px rgba(255,215,0,.09)",
                   }}>
                     <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"6px"}}>
@@ -678,7 +678,7 @@ export default function FaqWidget() {
                             background: idx===0?"rgba(255,215,0,.18)":idx===1?"rgba(200,200,200,.15)":"rgba(205,127,50,.12)",
                             border:`1.5px solid ${idx===0?"rgba(255,215,0,.4)":idx===1?"rgba(180,180,180,.3)":"rgba(205,127,50,.25)"}`,
                             borderRadius:"12px",
-                            padding:"6px 10px",
+                            padding:"5px 10px",
                             textAlign:"left",
                             cursor:"pointer",fontFamily:"inherit",
                             display:"flex",alignItems:"center",gap:"8px",
@@ -708,7 +708,7 @@ export default function FaqWidget() {
                   </div>
 
                   {/* 카테고리 3열 그리드 */}
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"6px"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"5px"}}>
 
                     {/* 신청 카드 — 항상 첫번째 */}
                     <button type="button" onClick={()=>setViewMode("signup")}
@@ -719,7 +719,7 @@ export default function FaqWidget() {
                         borderRadius:"20px",padding:"10px 8px 0",
                         textAlign:"center",cursor:"pointer",fontFamily:"inherit",
                         display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",
-                        position:"relative",overflow:"hidden",height:"104px",
+                        position:"relative",overflow:"hidden",height:"96px",
                         boxShadow:"0 6px 20px rgba(255,215,0,.40)",
                       }}>
                       <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
@@ -731,9 +731,9 @@ export default function FaqWidget() {
                       <div style={{width:"28px",height:"3px",borderRadius:"2px",
                         background:"rgba(120,53,15,.35)",zIndex:1}}/>
                       <div style={{width:"100%",display:"flex",justifyContent:"center",
-                        alignItems:"flex-end",height:"34px",marginTop:"auto"}}>
+                        alignItems:"flex-end",height:"28px",marginTop:"auto"}}>
                         <img src="/snake-char.png" alt="신청" className="dq-char-idle"
-                          style={{width:"48px",height:"48px",objectFit:"contain",
+                          style={{width:"40px",height:"40px",objectFit:"contain",
                             filter:"drop-shadow(0 -2px 6px rgba(0,0,0,.14))"}}/>
                       </div>
                     </button>
@@ -753,7 +753,7 @@ export default function FaqWidget() {
                             boxShadow:`0 4px 16px ${p.border}44`,
                             fontFamily:"inherit",cursor:"pointer",
                             display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",
-                            position:"relative",overflow:"hidden",height:"104px",
+                            position:"relative",overflow:"hidden",height:"96px",
                           }}>
                           {/* 배경 원형 */}
                           <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
@@ -766,9 +766,9 @@ export default function FaqWidget() {
 
                           {/* 캐릭터 — 하단 삐죽 */}
                           <div style={{width:"100%",display:"flex",justifyContent:"center",
-                            alignItems:"flex-end",height:"34px",marginTop:"auto"}}>
+                            alignItems:"flex-end",height:"28px",marginTop:"auto"}}>
                             <img src={charImg} alt={cat} className="dq-char-idle"
-                              style={{width:"48px",height:"48px",objectFit:"contain",
+                              style={{width:"40px",height:"40px",objectFit:"contain",
                                 filter:`drop-shadow(0 -2px 6px ${p.border}66)`}}/>
                           </div>
                         </button>
@@ -783,8 +783,8 @@ export default function FaqWidget() {
                     display:"flex",alignItems:"center",justifyContent:"space-around",
                     border:"1.5px dashed rgba(255,215,0,.35)",
                     position:"relative",overflow:"hidden",
-                    minHeight:"58px",
-                    margin:"2px 0 0",
+                    minHeight:"52px",
+                    margin:"0",
                   }}>
                     {/* 배경 원형 */}
                     <div style={{position:"absolute",left:"-20px",bottom:"-20px",width:"80px",height:"80px",
