@@ -319,10 +319,10 @@ export default function FaqWidget() {
 
         {/* ══ FAB ══ */}
         {!isOpen&&(
-          <div className="dq-fab" style={{position:"fixed",bottom:"160px",right:"36px",zIndex:9999}}>
+          <div className="dq-fab" style={{position:"fixed",bottom:"200px",right:"60px",zIndex:9999}}>
             {/* 왼쪽 말풍선 라벨 */}
             <div style={{
-              position:"absolute",right:"76px",top:"50%",transform:"translateY(-50%)",
+              position:"absolute",right:"82px",top:"50%",transform:"translateY(-50%)",
               background:"#fff",borderRadius:"14px 14px 4px 14px",
               padding:"8px 14px",
               boxShadow:"0 4px 18px rgba(0,0,0,.13)",
@@ -391,7 +391,7 @@ export default function FaqWidget() {
                 transition:isDragging?"none":"box-shadow .2s ease",
               }:{
                 left:0,right:0,bottom:0,
-                height:"min(92dvh, 92vh)",
+                height:"min(94dvh, 94vh)",
                 borderRadius:"28px 28px 0 0",
                 boxShadow:"0 -10px 44px rgba(60,50,0,.14)",
               }),
@@ -759,7 +759,7 @@ export default function FaqWidget() {
                           <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
                             borderRadius:"50%",background:"rgba(255,255,255,.28)",pointerEvents:"none"}}/>
                           {/* 카테고리명 */}
-                          <div style={{fontSize:"12px",fontWeight:900,color:p.text,fontFamily:"'Nunito',sans-serif",
+                          <div style={{fontSize:"11px",fontWeight:900,color:p.text,fontFamily:"'Nunito',sans-serif",
                             lineHeight:1.3,wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>
                             {cat}
                           </div>
@@ -814,22 +814,24 @@ export default function FaqWidget() {
                     borderRadius:"18px",padding:"14px 18px",
                     display:"flex",alignItems:"center",justifyContent:"space-between",
                     boxShadow:"0 6px 20px rgba(78,168,50,.30)",gap:"12px",
-                    position:"relative",overflow:"hidden",marginTop:"4px",
+                    position:"relative",overflow:"hidden",marginTop:"4px",flexWrap:"wrap",
                   }}>
                     <div style={{position:"absolute",right:"-12px",top:"-12px",width:"60px",height:"60px",
                       borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
                     <div style={{position:"absolute",right:"76px",bottom:"-8px",opacity:.20,pointerEvents:"none"}}>
                       <img src="/flower-char.png" alt="" style={{width:"36px",height:"36px",objectFit:"contain"}}/>
                     </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:"13px",fontWeight:900,color:"#fff",marginBottom:"4px"}}>원하는 답변이 없나요?</div>
-                      <div style={{fontSize:"12px",color:"rgba(255,255,255,.92)",lineHeight:1.4,fontWeight:700,whiteSpace:"nowrap"}}>문의사항 남겨주시면 담당자가 순차적으로 답변드려요 😊</div>
+                    <div style={{flex:"1 1 55%",minWidth:0}}>
+                      <div style={{fontSize:"12px",fontWeight:900,color:"#fff",marginBottom:"3px"}}>원하는 답변이 없나요?</div>
+                      <div style={{fontSize:"11px",color:"rgba(255,255,255,.90)",lineHeight:1.55,fontWeight:600}}>
+                        문의사항 남겨주시면<br/>담당자가 순차적으로 답변드려요 😊
+                      </div>
                     </div>
                     <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer"
                       style={{
                         background:"#FFD700",color:"#1A1A00",borderRadius:"12px",
-                        padding:"8px 12px",fontSize:"11px",fontWeight:900,textDecoration:"none",
-                        flexShrink:0,boxShadow:"0 3px 10px rgba(255,215,0,.40)",whiteSpace:"nowrap",
+                        padding:"10px 16px",fontSize:"12px",fontWeight:900,textDecoration:"none",
+                        flex:"0 0 auto",boxShadow:"0 3px 10px rgba(255,215,0,.40)",whiteSpace:"nowrap",
                       }}>
                       문의하기 →
                     </a>
