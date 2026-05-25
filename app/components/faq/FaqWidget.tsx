@@ -561,7 +561,7 @@ export default function FaqWidget() {
             )}
 
             {/* ── 스크롤 본문 ── */}
-            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"16px 20px 20px",
+            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"16px 20px 0",
               display:"flex",flexDirection:"column",gap:"12px"}}>
 
               {/* 로딩 */}
