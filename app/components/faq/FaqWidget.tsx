@@ -769,12 +769,12 @@ export default function FaqWidget() {
                   {/* 캐릭터 일러스트 배경 장식 — 여백 채우기 */}
                   <div style={{
                     background:"linear-gradient(135deg,rgba(255,215,0,.08),rgba(108,194,74,.06))",
-                    borderRadius:"20px",padding:"18px 20px",
+                    borderRadius:"20px",padding:"10px 20px",
                     display:"flex",alignItems:"center",justifyContent:"space-around",
                     border:"1.5px dashed rgba(255,215,0,.35)",
                     position:"relative",overflow:"hidden",
                     minHeight:"70px",
-                    margin:"2px 0 4px",padding:"10px 20px",
+                    margin:"2px 0 4px",
                   }}>
                     {/* 배경 원형 */}
                     <div style={{position:"absolute",left:"-20px",bottom:"-20px",width:"80px",height:"80px",
