@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyvhqZGiieK61MZXmH3La52_L_re4m2DtuWCnFmlfTrPO4kAiZwWlmSzj-aFpIT2LWS/exec";
 
-export const dynamic = "force-dynamic";
+// 5분마다 캐시 갱신 (300초)
+export const revalidate = 300;
 
 function getText(item: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
@@ -41,7 +42,7 @@ export async function GET() {
       headers: {
         "Accept": "application/json",
       },
-      cache: "no-store",
+      next: { revalidate: 300 }, // 5분 캐시
     });
 
     if (!response.ok) {
