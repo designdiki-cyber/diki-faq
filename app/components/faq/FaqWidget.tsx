@@ -376,7 +376,7 @@ export default function FaqWidget() {
               ...(isDesktop?{
                 left:`calc(50% + ${pos.x}px)`,top:`calc(50% + ${pos.y}px)`,
                 transform:"translate(-50%,-50%)",
-                width:"580px",height:"84vh",maxHeight:"820px",
+                width:"580px",height:"90vh",maxHeight:"860px",
                 borderRadius:"28px",
                 boxShadow:"0 28px 70px rgba(60,50,0,.16),0 4px 14px rgba(60,50,0,.08)",
                 transition:isDragging?"none":"box-shadow .2s ease",
@@ -648,10 +648,10 @@ export default function FaqWidget() {
                     background:"rgba(255,255,255,.82)",
                     borderRadius:"16px",
                     border:"1.5px solid rgba(255,215,0,.25)",
-                    padding:"8px 12px 10px",
+                    padding:"7px 12px 8px",
                     boxShadow:"0 2px 10px rgba(255,215,0,.09)",
                   }}>
-                    <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"8px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"6px"}}>
                       <span style={{fontSize:"13px"}}>🔥</span>
                       <span style={{fontSize:"11px",fontWeight:900,color:"#6A5000"}}>
                         {popularFaqs.length>0 ? "많이 본 질문" : "자주 묻는 질문"}
@@ -668,7 +668,7 @@ export default function FaqWidget() {
                             background: idx===0?"rgba(255,215,0,.18)":idx===1?"rgba(200,200,200,.15)":"rgba(205,127,50,.12)",
                             border:`1.5px solid ${idx===0?"rgba(255,215,0,.4)":idx===1?"rgba(180,180,180,.3)":"rgba(205,127,50,.25)"}`,
                             borderRadius:"12px",
-                            padding:"8px 12px",
+                            padding:"6px 10px",
                             textAlign:"left",
                             cursor:"pointer",fontFamily:"inherit",
                             display:"flex",alignItems:"center",gap:"8px",
@@ -698,7 +698,7 @@ export default function FaqWidget() {
                   </div>
 
                   {/* 카테고리 3열 그리드 */}
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"7px"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"6px"}}>
 
                     {/* 신청 카드 — 항상 첫번째 */}
                     <button type="button" onClick={()=>setViewMode("signup")}
@@ -709,7 +709,7 @@ export default function FaqWidget() {
                         borderRadius:"20px",padding:"10px 8px 0",
                         textAlign:"center",cursor:"pointer",fontFamily:"inherit",
                         display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",
-                        position:"relative",overflow:"hidden",height:"112px",
+                        position:"relative",overflow:"hidden",height:"104px",
                         boxShadow:"0 6px 20px rgba(255,215,0,.40)",
                       }}>
                       <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
@@ -743,7 +743,7 @@ export default function FaqWidget() {
                             boxShadow:`0 4px 16px ${p.border}44`,
                             fontFamily:"inherit",cursor:"pointer",
                             display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",
-                            position:"relative",overflow:"hidden",height:"112px",
+                            position:"relative",overflow:"hidden",height:"104px",
                           }}>
                           {/* 배경 원형 */}
                           <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
@@ -773,8 +773,8 @@ export default function FaqWidget() {
                     display:"flex",alignItems:"center",justifyContent:"space-around",
                     border:"1.5px dashed rgba(255,215,0,.35)",
                     position:"relative",overflow:"hidden",
-                    minHeight:"70px",
-                    margin:"2px 0 4px",
+                    minHeight:"60px",
+                    margin:"2px 0 2px",
                   }}>
                     {/* 배경 원형 */}
                     <div style={{position:"absolute",left:"-20px",bottom:"-20px",width:"80px",height:"80px",
