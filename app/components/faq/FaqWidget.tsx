@@ -329,8 +329,8 @@ export default function FaqWidget() {
               border:"1.5px solid rgba(255,215,0,.45)",
               whiteSpace:"nowrap",pointerEvents:"none",
             }}>
-              <div style={{fontSize:"12px",fontWeight:900,color:"#1C1C1C",lineHeight:1.4}}>궁금한 게 있으신가요? 💛</div>
-              <div style={{fontSize:"10px",color:"#999",marginTop:"1px"}}>디키캠프 FAQ 도우미</div>
+              <div style={{fontSize:"13px",fontWeight:900,color:"#1C1C1C",lineHeight:1.4}}>궁금한 게 있으신가요? 💛</div>
+              <div style={{fontSize:"11px",color:"#48CA02",fontWeight:800,marginTop:"2px"}}>디키캠프 FAQ 도우미</div>
               {/* 말풍선 꼬리 오른쪽 */}
               <div style={{
                 position:"absolute",right:"-7px",top:"50%",transform:"translateY(-50%)",
@@ -360,13 +360,13 @@ export default function FaqWidget() {
               }}/>
               {/* 빨간 ? 뱃지 */}
               <div style={{
-                position:"absolute",top:"-5px",right:"-5px",
-                width:"24px",height:"24px",borderRadius:"50%",
+                position:"absolute",top:"38px",right:"-8px",
+                width:"22px",height:"22px",borderRadius:"50%",
                 background:"linear-gradient(135deg,#FF4757,#FF6B81)",
                 border:"2.5px solid #fff",
                 display:"flex",alignItems:"center",justifyContent:"center",
                 boxShadow:"0 2px 8px rgba(255,71,87,.45)",
-                fontSize:"13px",fontWeight:900,color:"#fff",lineHeight:1,
+                fontSize:"12px",fontWeight:900,color:"#fff",lineHeight:1,
               }}>?</div>
             </button>
           </div>
