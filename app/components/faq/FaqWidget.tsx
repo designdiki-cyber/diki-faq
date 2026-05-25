@@ -561,8 +561,8 @@ export default function FaqWidget() {
             )}
 
             {/* ── 스크롤 본문 ── */}
-            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"16px 20px 0",
-              display:"flex",flexDirection:"column",gap:"12px"}}>
+            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"14px 18px 0",
+              display:"flex",flexDirection:"column",gap:"8px"}}>
 
               {/* 로딩 */}
               {loading&&(
@@ -773,8 +773,8 @@ export default function FaqWidget() {
                     display:"flex",alignItems:"center",justifyContent:"space-around",
                     border:"1.5px dashed rgba(255,215,0,.35)",
                     position:"relative",overflow:"hidden",
-                    minHeight:"60px",
-                    margin:"2px 0 2px",
+                    minHeight:"58px",
+                    margin:"2px 0 0",
                   }}>
                     {/* 배경 원형 */}
                     <div style={{position:"absolute",left:"-20px",bottom:"-20px",width:"80px",height:"80px",
