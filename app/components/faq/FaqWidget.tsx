@@ -295,6 +295,14 @@ export default function FaqWidget() {
         .dq-close{transition:transform .13s ease,background .13s ease;}
         .dq-close:hover{transform:rotate(90deg);}
 
+        /* 작은 화면 반응형 */
+        @media (max-height: 700px) {
+          .dq-sc { gap: 4px !important; }
+        }
+        @media (max-width: 480px) {
+          .dq-cat { border-radius: 16px !important; }
+        }
+
         /* 캐릭터 흰 원형 */
         .dq-char{border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
 
@@ -311,7 +319,7 @@ export default function FaqWidget() {
 
         {/* ══ FAB ══ */}
         {!isOpen&&(
-          <div className="dq-fab" style={{position:"fixed",bottom:"120px",right:"28px",zIndex:9999}}>
+          <div className="dq-fab" style={{position:"fixed",bottom:"160px",right:"36px",zIndex:9999}}>
             {/* 왼쪽 말풍선 라벨 */}
             <div style={{
               position:"absolute",right:"76px",top:"50%",transform:"translateY(-50%)",
@@ -376,12 +384,14 @@ export default function FaqWidget() {
               ...(isDesktop?{
                 left:`calc(50% + ${pos.x}px)`,top:`calc(50% + ${pos.y}px)`,
                 transform:"translate(-50%,-50%)",
-                width:"580px",
+                width:"min(580px, 92vw)",
+                maxHeight:"min(860px, 92vh)",
                 borderRadius:"28px",
                 boxShadow:"0 28px 70px rgba(60,50,0,.16),0 4px 14px rgba(60,50,0,.08)",
                 transition:isDragging?"none":"box-shadow .2s ease",
               }:{
-                left:0,right:0,bottom:0,height:"92dvh",
+                left:0,right:0,bottom:0,
+                height:"min(92dvh, 92vh)",
                 borderRadius:"28px 28px 0 0",
                 boxShadow:"0 -10px 44px rgba(60,50,0,.14)",
               }),
