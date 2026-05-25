@@ -376,7 +376,7 @@ export default function FaqWidget() {
               ...(isDesktop?{
                 left:`calc(50% + ${pos.x}px)`,top:`calc(50% + ${pos.y}px)`,
                 transform:"translate(-50%,-50%)",
-                width:"580px",height:"90vh",maxHeight:"860px",
+                width:"580px",
                 borderRadius:"28px",
                 boxShadow:"0 28px 70px rgba(60,50,0,.16),0 4px 14px rgba(60,50,0,.08)",
                 transition:isDragging?"none":"box-shadow .2s ease",
@@ -561,7 +561,7 @@ export default function FaqWidget() {
             )}
 
             {/* ── 스크롤 본문 ── */}
-            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"14px 18px 0",
+            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"14px 18px 8px",
               display:"flex",flexDirection:"column",gap:"8px"}}>
 
               {/* 로딩 */}
