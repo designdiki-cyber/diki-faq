@@ -1,2 +1,41 @@
 {
+}import { NextResponse } from "next/server";
+
+const APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzzJmzvecQ9_W7sGh3bXKVSxZlLJ6B2l9HimstJUEdeZjD2iUzU0g0IvOkJ8zgTMtdN/exec";
+
+export async function GET() {
+  try {
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Google Apps Script API 응답 오류",
+          status: response.status,
+        },
+        { status: 500 }
+      );
+    }
+
+    const data = await response.json();
+
+    return NextResponse.json(data, {
+      status: 200,
+    });
+  } catch (error) {
+    console.error("FAQ API Error:", error);
+
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "FAQ 데이터를 불러오지 못했습니다.",
+      },
+      { status: 500 }
+    );
+  }
 }

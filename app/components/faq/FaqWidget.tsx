@@ -1,628 +1,956 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent } from "react";
 
-type RawFaqItem = { [key: string]: unknown };
-
+type RawFaqItem = {
+  id?: string | number;
+  mainCategory?: string; subCategory?: string;
+  question?: string; answer?: string; sortOrder?: number; contact?: boolean;
+  대분류?: string; 중분류?: string; 질문?: string; 답변?: string;
+  노출여부?: string | boolean; 정렬순서?: number | string; 문의유도?: string | boolean;
+};
 type FaqItem = {
-  id: string;
-  category: string;
-  subCategory: string;
-  question: string;
-  answer: string;
-  order: number;
+  id: string; mainCategory: string; subCategory: string;
+  question: string; answer: string; sortOrder: number; contact: boolean;
 };
+type ViewMode = "intro" | "search" | "category" | "all" | "signup";
 
-const API_URL =
-  "https://script.google.com/macros/s/AKfycbzzJmzvecQ9_W7sGh3bXKVSxZlLJ6B2l9HimstJUEdeZjD2iUzU0g0IvOkJ8zgTMtdN/exec";
+const GOOGLE_FORM_URL    = "https://forms.gle/h8Er3uB9um6sC6Tw5";
+const APPS_SCRIPT_URL    = "https://script.google.com/macros/s/AKfycbyvhqZGiieK61MZXmH3La52_L_re4m2DtuWCnFmlfTrPO4kAiZwWlmSzj-aFpIT2LWS/exec";
+const EARLYBIRD_FORM_URL = "https://forms.gle/TvB2FCqBaiTf71uc9";
+const SPECIAL_FORM_URL   = "https://forms.gle/kQoL4ghh6sLwttvp9";
 
-const GOOGLE_FORM_URL = "https://forms.gle/ghdmocNRvzdEALiX8";
-const EARLY_BIRD_FORM_URL = "https://forms.gle/EDzy7oc8wXzFvz4o6";
-const BENEFIT_FORM_URL = "https://forms.gle/bXCbxmxXqfkwDKt48";
+const HIDDEN_CATEGORIES = ["직접 문의","문의접수","기타 문의","1:1 문의","문의남기기"];
 
-const CATEGORY_ORDER = [
-  "전체",
-  "비용 문의",
-  "캠프 모집 및 신청 문의",
-  "일정 문의",
-  "캠프 프로그램 문의",
-  "주차 문의",
-  "직접 문의",
-  "예약알림",
+const SYNONYM_GROUPS: string[][] = [
+  ["비용","참가비","금액","가격","요금","결제","얼마","얼마나","얼마예요","가격이","얼마인가요","비용이","수강료"],
+  ["환불","취소","환급","반환","반품"],
+  ["신청","접수","등록","모집","예약","신청하다","신청방법","어떻게신청","신청은"],
+  ["일정","날짜","시간","기간","언제","몇시","운영시간","몇월","언제부터","언제까지"],
+  ["준비물","준비","가방","복장","옷","신발","뭘가져","챙겨야"],
+  ["주차","차량","주차장","주차비","주차가능"],
+  ["장소","위치","어디","ddp","디키디키","주소"],
+  ["프로그램","체험","활동","놀이","커리큘럼","수업","내용"],
+  ["단체","그룹","여러명","단체예약","단체할인"],
+  ["인원","정원","자리","자리있나","몇명","남은자리","빈자리","마감","접수가능"],
 ];
 
-const DEFAULT_SEARCH_HINTS = ["참가비는 얼마인가요?", "예약 오픈 알림"];
+function expandKeywords(kw: string): string[] {
+  const k = kw.trim().toLowerCase().replace(/\s+/g,"");
+  if (!k) return [];
+  const result = new Set<string>([k]);
+  for (const g of SYNONYM_GROUPS) {
+    if (g.some(w=>{const wn=w.toLowerCase().replace(/\s+/g,"");return wn.includes(k)||k.includes(wn);}))
+      g.forEach(w=>result.add(w.toLowerCase().replace(/\s+/g,"")));
+  }
+  return Array.from(result);
+}
+function matchesFaq(item: FaqItem, words: string[]): boolean {
+  const t=[item.mainCategory,item.subCategory,item.question,item.answer].join(" ").toLowerCase().replace(/\s+/g,"");
+  return words.some(w=>t.includes(w));
+}
+function normalize(item: RawFaqItem, i: number): FaqItem|null {
+  const vis=item.노출여부;
+  if (vis===false) return null;
+  if (typeof vis==="string"&&["FALSE","미노출"].includes(vis.trim())) return null;
+  const q=String(item.question||item.질문||"").trim();
+  const a=String(item.answer||item.답변||"").trim();
+  if (!q||!a) return null;
+  return {
+    id:String(item.id||`faq-${i}`),
+    mainCategory:String(item.mainCategory||item.대분류||"자주 묻는 질문").trim(),
+    subCategory:String(item.subCategory||item.중분류||"").trim(),
+    question:q,answer:a,
+    sortOrder:Number(item.sortOrder||item.정렬순서||i),
+    contact:item.contact===true||item.문의유도===true||["TRUE","Y","예"].includes(String(item.문의유도||"")),
+  };
+}
 
-const FIXED_RESERVATION_ANSWERS: Record<string, string> = {
-  "예약오픈알림서비스는어떻게신청하나요?": `디키캠프는 예약 오픈 알림 서비스를 운영하고 있습니다.
-사전에 신청해주시면 예약 일정에 맞춰 문자로 안내를 받아보실 수 있습니다.`,
-
-  "예약오픈알림문자는언제발송되나요?": `예약 오픈 알림 서비스를 신청하신 경우, 예약 오픈일 당일 오픈 시간 약 30분 전에 문자로 안내드립니다.`,
-
-  "예약오픈알림링크를통해바로예약가능한가요?": `예약 오픈 알림 문자에 포함된 링크는 디키캠프 상세 안내 페이지로 연결됩니다.
-상세 내용을 확인하신 후 페이지 하단의 신청 링크를 통해 예약을 진행해주셔야 합니다.`,
-
-  "캠프예약오픈일정은언제인가요?": `[기존 참여자 특별 혜택가] 7월 16일 화요일 오후 4시
-[얼리버드 예약 오픈] 7월 18일 목요일 오후 4시
-세부 모집 인원은 일정별로 상이할 수 있습니다.`,
-};
-
-const SEARCH_SYNONYM_GROUPS = [
-  ["비용", "참가비", "참가비용", "금액", "가격", "요금", "얼마", "결제", "입금"],
-  ["모집", "신청", "접수", "등록", "지원", "예약"],
-  ["알림", "예약알림", "오픈알림", "문자", "얼리버드", "혜택가"],
-  ["일정", "스케줄", "날짜", "기간", "언제", "시간"],
-  ["주차", "주차장", "차량", "주차비"],
-  ["프로그램", "커리큘럼", "수업", "활동", "놀이"],
-  ["문의", "연락", "상담", "전화", "카카오톡"],
+/* 카테고리 카드 팔레트 — 쨍하고 밝은 키즈 컬러 */
+const PALETTES = [
+  {bg:"#3BF4FB",border:"#00C8D4",text:"#003A40",char:"/blue-char.png"},
+  {bg:"#48CA02",border:"#2EA000",text:"#0D3800",char:"/snake-char.png"},
+  {bg:"#FF85C2",border:"#CC5090",text:"#5A0035",char:"/dog-char.png"},
+  {bg:"#3ECFCF",border:"#00A8A8",text:"#003535",char:"/flower-char.png"},
+  {bg:"#A78BFA",border:"#7C5CE0",text:"#2D006B",char:"/snake-char.png"},
+  {bg:"#CAFF8A",border:"#7ACC00",text:"#2A4A00",char:"/mouse-char.png"},
 ];
+function getPalette(i:number){return PALETTES[i%PALETTES.length];}
 
-const POPUP_WIDTH = 420;
-const POPUP_HEIGHT = 700;
-
-function toText(value: unknown) {
-  if (value === null || value === undefined) return "";
-  return String(value).trim();
-}
-
-function normalizeText(value: string) {
-  return value.toLowerCase().replace(/\s/g, "");
-}
-
-function getFixedAnswer(item: FaqItem) {
-  return FIXED_RESERVATION_ANSWERS[normalizeText(item.question)] || item.answer;
-}
-
-function isVisibleItem(item: RawFaqItem) {
-  const visibleValue = item["노출여부"] ?? item["visible"] ?? item["isVisible"];
-  if (visibleValue === undefined || visibleValue === null || visibleValue === "") return true;
-  if (typeof visibleValue === "boolean") return visibleValue;
-
-  const text = String(visibleValue).trim().toLowerCase();
-  return !["false", "n", "no", "0", "x", "미노출", "숨김", "비공개"].includes(text);
-}
-
-function normalizeFaqList(rawList: RawFaqItem[]): FaqItem[] {
-  return rawList
-    .filter(isVisibleItem)
-    .map((item, index) => ({
-      id: toText(item["id"]) || toText(item["ID"]) || toText(item["번호"]) || String(index + 1),
-      category: toText(item["category"]) || toText(item["대분류"]) || toText(item["카테고리"]) || "기타",
-      subCategory: toText(item["subCategory"]) || toText(item["중분류"]) || "",
-      question: toText(item["question"]) || toText(item["질문"]) || "",
-      answer: toText(item["answer"]) || toText(item["답변"]) || "",
-      order: Number(toText(item["order"]) || toText(item["정렬순서"]) || index + 1),
-    }))
-    .filter((item) => item.question && item.answer)
-    .sort((a, b) => a.order - b.order);
-}
-
-function getSearchKeywords(search: string) {
-  const normalizedSearch = normalizeText(search);
-  const keywords = new Set<string>();
-  if (normalizedSearch) keywords.add(normalizedSearch);
-
-  SEARCH_SYNONYM_GROUPS.forEach((group) => {
-    const normalizedGroup = group.map(normalizeText);
-    if (normalizedGroup.some((word) => normalizedSearch.includes(word))) {
-      normalizedGroup.forEach((word) => keywords.add(word));
-    }
-  });
-
-  return Array.from(keywords);
-}
-
-function isReservationAlertItem(item: FaqItem) {
-  return normalizeText(item.question) === normalizeText("예약 오픈 알림 서비스는 어떻게 신청하나요?");
-}
-
-function renderAnswerText(text: string) {
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => (
-      <p key={`${line}-${index}`} className="mb-2 last:mb-0">
-        {line}
-      </p>
-    ));
+/* 카테고리 캐릭터 배정 */
+function getCatChar(cat:string):string{
+  if(cat.includes("일정")||cat.includes("운영")||cat.includes("날짜")) return "/blue-char.png";
+  if(cat.includes("비용")||cat.includes("참가비")||cat.includes("결제")||cat.includes("환불")) return "/snake-char.png";
+  if(cat.includes("신청")||cat.includes("모집")||cat.includes("접수")||cat.includes("예약")) return "/flower-char.png";
+  if(cat.includes("준비물")||cat.includes("준비")) return "/dog-char.png";
+  if(cat.includes("주차")||cat.includes("차량")) return "/mouse-char.png";
+  return "/main-char.png";
 }
 
 export default function FaqWidget() {
-  const [mounted, setMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [faqList, setFaqList] = useState<FaqItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("전체");
-  const [hasCategoryClicked, setHasCategoryClicked] = useState(false);
-  const [search, setSearch] = useState("");
-  const [openedId, setOpenedId] = useState<string | null>(null);
-  const [recentIds, setRecentIds] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
+  const [isOpen,setIsOpen]           = useState(false);
+  const [faqs,setFaqs]               = useState<FaqItem[]>([]);
+  const [loading,setLoading]         = useState(false);
+  const [viewMode,setViewMode]       = useState<ViewMode>("intro");
+  const [searchText,setSearchText]   = useState("");
+  const [selectedCat,setSelectedCat] = useState("");
+  const [openId,setOpenId]           = useState<string|null>(null);
+  const [clickCounts,setClickCounts] = useState<Record<string,number>>({});
+  const [isDesktop,setIsDesktop]     = useState(false);
+  const [pos,setPos]                 = useState({x:0,y:0});
+  const [isDragging,setIsDragging]   = useState(false);
 
-  const dragInfo = useRef({ offsetX: 0, offsetY: 0 });
-  const rafRef = useRef<number | null>(null);
+  const dragRef  = useRef(false);
+  const dragStart= useRef({x:0,y:0});
+  const frame    = useRef<number|null>(null);
+  const searchEl = useRef<HTMLInputElement>(null);
 
-  const shouldShowFaqList = search.trim() !== "" || hasCategoryClicked;
+  useEffect(()=>{
+    const ck=()=>setIsDesktop(window.innerWidth>=768);
+    ck(); window.addEventListener("resize",ck);
+    return ()=>window.removeEventListener("resize",ck);
+  },[]);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Google Sheets에서 클릭 카운트 로드
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const res = await fetch(`${APPS_SCRIPT_URL}?action=getClicks`,{cache:"no-store"});
+        const data = await res.json();
+        if(data.success && data.clicks) setClickCounts(data.clicks);
+      }catch(e){ console.error("[클릭카운트 로드]",e); }
+    })();
+  },[]);
 
-  useEffect(() => {
-    const updateDevice = () => setIsMobile(window.innerWidth < 768);
-    updateDevice();
-    window.addEventListener("resize", updateDevice);
-    return () => window.removeEventListener("resize", updateDevice);
-  }, []);
+  useEffect(()=>{
+    if (!isOpen) return;
+    (async()=>{
+      try{
+        setLoading(true);
+        const res=await fetch(`/api/faqs?t=${Date.now()}`,{cache:"no-store"});
+        const data=await res.json();
+        const raw:RawFaqItem[]=Array.isArray(data?.items)?data.items:Array.isArray(data)?data:[];
+        setFaqs(raw.map(normalize).filter((x):x is FaqItem=>Boolean(x)).sort((a,b)=>a.sortOrder-b.sortOrder));
+      }catch(e){console.error("[FAQ]",e);setFaqs([]);}
+      finally{setLoading(false);}
+    })();
+  },[isOpen]);
 
-  useEffect(() => {
-    async function fetchFaq() {
-      try {
-        setIsLoading(true);
-        setLoadError("");
+  // 인기 질문 — 클릭 많은 순 top 3
+  const popularFaqs = useMemo(()=>{
+    if (faqs.length===0) return [];
+    return [...faqs]
+      .filter(f=>clickCounts[f.id]>0)
+      .sort((a,b)=>(clickCounts[b.id]||0)-(clickCounts[a.id]||0))
+      .slice(0,2);
+  },[faqs,clickCounts]);
 
-        const response = await fetch(API_URL, { cache: "no-store" });
-        const data = await response.json();
+  const allCats    =useMemo(()=>Array.from(new Set(faqs.map(f=>f.mainCategory).filter(Boolean))),[faqs]);
+  const visibleCats=useMemo(()=>allCats.filter(c=>!HIDDEN_CATEGORIES.some(h=>c===h)),[allCats]);
+  const searchWords=useMemo(()=>expandKeywords(searchText),[searchText]);
+  const visibleFaqs=useMemo(()=>{
+    if(viewMode==="intro"||viewMode==="signup") return [];
+    if(viewMode==="all")      return faqs;
+    if(viewMode==="category") return faqs.filter(f=>f.mainCategory===selectedCat);
+    if(viewMode==="search")   return faqs.filter(f=>matchesFaq(f,searchWords));
+    return [];
+  },[faqs,viewMode,selectedCat,searchWords]);
 
-        const rawList = Array.isArray(data)
-          ? data
-          : Array.isArray(data.faq)
-          ? data.faq
-          : Array.isArray(data.items)
-          ? data.items
-          : Array.isArray(data.data)
-          ? data.data
-          : [];
+  const handleSearch=(v:string)=>{setSearchText(v);setSelectedCat("");setOpenId(null);setViewMode(v.trim()?"search":"intro");};
+  const handleCat  =(c:string)=>{setSelectedCat(c);setSearchText("");setOpenId(null);setViewMode("category");};
+  const handleAll  =()=>{setSelectedCat("");setSearchText("");setOpenId(null);setViewMode("all");};
+  const handleBack =()=>{setViewMode("intro");setSearchText("");setSelectedCat("");setOpenId(null);};
+  const handleFaq  =(item:FaqItem)=>{
+    setOpenId(p=>p===item.id?null:item.id);
+    // 클릭 카운트 — Google Sheets에 저장 (낙관적 업데이트)
+    setClickCounts(prev=>({...prev,[item.id]:(Number(prev[item.id])||0)+1}));
+    fetch(`${APPS_SCRIPT_URL}?action=click&faqId=${encodeURIComponent(item.id)}`,{
+      method:"GET",cache:"no-store",
+    }).catch(()=>{});
+  };
 
-        setFaqList(normalizeFaqList(rawList));
-      } catch {
-        setLoadError("FAQ 데이터를 불러오지 못했습니다.");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchFaq();
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+  const startDrag=(e:React.MouseEvent)=>{
+    if(!isDesktop) return;
+    dragRef.current=true;setIsDragging(true);
+    dragStart.current={x:e.clientX-pos.x,y:e.clientY-pos.y};
+    document.body.style.userSelect="none";
+  };
+  useEffect(()=>{
+    const mv=(e:MouseEvent)=>{
+      if(!dragRef.current) return;
+      if(frame.current) cancelAnimationFrame(frame.current);
+      frame.current=requestAnimationFrame(()=>setPos({x:e.clientX-dragStart.current.x,y:e.clientY-dragStart.current.y}));
     };
-  }, []);
+    const up=()=>{dragRef.current=false;setIsDragging(false);document.body.style.userSelect="";};
+    window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);
+    return ()=>{window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);if(frame.current)cancelAnimationFrame(frame.current);};
+  },[]);
 
-  const resetWidgetState = () => {
-    setSearch("");
-    setSelectedCategory("전체");
-    setHasCategoryClicked(false);
-    setOpenedId(null);
-  };
+  const isResult=viewMode!=="intro"&&viewMode!=="signup";
+  const isIntro=viewMode==="intro";
+  const isSignup=viewMode==="signup";
 
-  const openWidget = () => {
-    resetWidgetState();
-
-    if (window.innerWidth >= 768) {
-      const width = Math.min(POPUP_WIDTH, window.innerWidth - 32);
-      const height = Math.min(POPUP_HEIGHT, window.innerHeight * 0.85);
-
-      setPosition({
-        x: Math.max(16, (window.innerWidth - width) / 2),
-        y: Math.max(24, (window.innerHeight - height) / 2),
-      });
-    }
-
-    setIsOpen(true);
-  };
-
-  const closeWidget = () => {
-    setIsOpen(false);
-    setIsDragging(false);
-  };
-
-  const startDrag = (event: PointerEvent<HTMLDivElement>) => {
-    if (isMobile) return;
-
-    const popup = event.currentTarget.closest("[data-faq-popup='true']") as HTMLDivElement | null;
-    if (!popup) return;
-
-    const rect = popup.getBoundingClientRect();
-    dragInfo.current = {
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top,
-    };
-
-    setIsDragging(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const moveDrag = (event: PointerEvent<HTMLDivElement>) => {
-    if (isMobile || !isDragging) return;
-
-    const clientX = event.clientX;
-    const clientY = event.clientY;
-
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-
-    rafRef.current = requestAnimationFrame(() => {
-      const width = Math.min(POPUP_WIDTH, window.innerWidth - 32);
-      const height = Math.min(POPUP_HEIGHT, window.innerHeight * 0.85);
-
-      const nextX = clientX - dragInfo.current.offsetX;
-      const nextY = clientY - dragInfo.current.offsetY;
-
-      setPosition({
-        x: Math.min(Math.max(16, nextX), Math.max(16, window.innerWidth - width - 16)),
-        y: Math.min(Math.max(16, nextY), Math.max(16, window.innerHeight - height - 16)),
-      });
-    });
-  };
-
-  const endDrag = () => setIsDragging(false);
-
-  const saveRecent = (id: string) => {
-    const updated = [id, ...recentIds.filter((recentId) => recentId !== id)].slice(0, 2);
-    setRecentIds(updated);
-  };
-
-  const handleFaqClick = (item: FaqItem) => {
-    setOpenedId((prev) => (prev === item.id ? null : item.id));
-    saveRecent(item.id);
-  };
-
-  const handleRecentClick = (item: FaqItem) => {
-    setSearch("");
-    setSelectedCategory("전체");
-    setHasCategoryClicked(true);
-    setOpenedId(item.id);
-    saveRecent(item.id);
-  };
-
-  const handleSearchHintClick = (keyword: string) => {
-    setSearch(keyword);
-    setSelectedCategory("전체");
-    setHasCategoryClicked(false);
-    setOpenedId(null);
-  };
-
-  const openExternalLink = (url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
-  const categoryList = useMemo(() => {
-    const unique = Array.from(new Set(faqList.map((item) => item.category)));
-    const ordered = CATEGORY_ORDER.filter((category) => category === "전체" || unique.includes(category));
-    const extra = unique.filter((category) => !CATEGORY_ORDER.includes(category));
-    return [...ordered, ...extra];
-  }, [faqList]);
-
-  const searchKeywords = useMemo(() => getSearchKeywords(search), [search]);
-
-  const filteredFaqList = useMemo(() => {
-    return faqList.filter((item) => {
-      const categoryMatched = selectedCategory === "전체" || item.category === selectedCategory;
-      const searchableText = normalizeText(
-        `${item.category} ${item.subCategory} ${item.question} ${getFixedAnswer(item)}`
-      );
-      const searchMatched =
-        search.trim() === "" || searchKeywords.some((keyword) => searchableText.includes(keyword));
-
-      return categoryMatched && searchMatched;
-    });
-  }, [faqList, selectedCategory, search, searchKeywords]);
-
-  const recentFaqList = useMemo(() => {
-    return recentIds
-      .map((id) => faqList.find((item) => item.id === id))
-      .filter(Boolean)
-      .slice(0, 2) as FaqItem[];
-  }, [recentIds, faqList]);
-
-  if (!mounted) return null;
-
-  return (
+  return(
     <>
-      {isOpen && (
-        <button
-          type="button"
-          aria-label="FAQ 닫기"
-          onClick={closeWidget}
-          className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[1px]"
-        />
-      )}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+        .dq *{font-family:'Nunito','Noto Sans KR',-apple-system,sans-serif;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
 
-      {!isOpen && (
-        <button
-          type="button"
-          onClick={openWidget}
-          style={
-            isMobile
-              ? {
-                  bottom: "20px",
-                  right: "20px",
-                }
-              : {
-                  bottom: "48px",
-                  right: "80px",
-                }
-          }
-          className="fixed z-50 w-[90px] h-[112px] rounded-[32px] bg-gradient-to-b from-[#FFF4B8] to-[#FFE66D] border border-[#F3D86A] shadow-[0_16px_38px_rgba(80,60,20,0.18)] flex flex-col items-center justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_46px_rgba(80,60,20,0.22)] active:scale-95"
-        >
-          <div className="w-[60px] h-[60px] rounded-full bg-white border border-[#F6E8B6] shadow-[inset_0_2px_0_rgba(255,255,255,0.9),0_7px_16px_rgba(120,90,20,0.12)] flex items-center justify-center mb-2">
-            <img src="/diki-character.png" alt="디키캠프 문의" className="w-[44px] h-[44px] object-contain" />
-          </div>
-          <span className="text-[12.5px] font-extrabold text-[#222] leading-tight tracking-[-0.02em]">
-            디키캠프
-          </span>
-          <span className="text-[12.5px] font-extrabold text-[#222] leading-tight tracking-[-0.02em]">
-            문의
-          </span>
-        </button>
-      )}
+        /* FAB */
+        @keyframes dq-fab-in{from{transform:scale(.4) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+        @keyframes dq-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+        @keyframes dq-glow{0%,100%{box-shadow:0 6px 24px rgba(255,215,0,.3)}50%{box-shadow:0 14px 38px rgba(255,215,0,.58)}}
+        .dq-fab{animation:dq-fab-in .45s cubic-bezier(.34,1.56,.64,1) both}
+        .dq-fab-btn{animation:dq-bob 3s ease-in-out infinite,dq-glow 3s ease-in-out infinite;transition:transform .18s ease;}
+        .dq-fab-btn:hover{animation:none;transform:translateY(-4px) scale(1.06);box-shadow:0 16px 44px rgba(255,215,0,.62);}
+        .dq-fab-btn:active{transform:scale(.93);}
 
-      <section
-        data-faq-popup="true"
-        className={`fixed z-50 bg-[#FFFDF8] border border-[#F3D86A] shadow-[0_24px_80px_rgba(0,0,0,0.24)] overflow-hidden flex flex-col select-none ${
-          isDragging ? "transition-none" : "transition-[opacity,transform] duration-300"
-        } ${
-          isMobile
-            ? `left-0 bottom-0 w-full h-[88vh] rounded-t-[32px] ${
-                isOpen ? "translate-y-0 opacity-100" : "translate-y-full opacity-0 pointer-events-none"
-              }`
-            : `rounded-[34px] ${isOpen ? "scale-100 opacity-100" : "scale-95 opacity-0 pointer-events-none"}`
-        }`}
-        style={
-          isMobile
-            ? undefined
-            : {
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                width: `${POPUP_WIDTH}px`,
-                height: `min(${POPUP_HEIGHT}px, 85vh)`,
-              }
+        /* 패널 */
+        @keyframes dq-panel-in{from{transform:translate(-50%,-50%) scale(.82);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+        @keyframes dq-mob-in{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+        .dq-desk-anim{animation:dq-panel-in .4s cubic-bezier(.34,1.4,.64,1) both;}
+        .dq-mob-anim{animation:dq-mob-in .38s cubic-bezier(.34,1.4,.64,1) both;}
+
+        /* 카테고리 카드 */
+        @keyframes dq-bounce{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-7px) scale(1.06)}70%{transform:translateY(-2px) scale(.98)}100%{transform:translateY(0) scale(1)}}
+        .dq-cat{transition:box-shadow .2s ease;cursor:pointer;}
+        .dq-cat:hover{animation:dq-bounce .42s cubic-bezier(.34,1.56,.64,1);box-shadow:0 14px 32px rgba(0,0,0,.16)!important;}
+        .dq-cat:active{transform:scale(.90);}
+
+        /* FAQ */
+        @keyframes dq-ans-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        .dq-ans{animation:dq-ans-in .24s ease both}
+        .dq-faq-item{transition:transform .18s ease,box-shadow .18s ease,border-color .16s ease;}
+        .dq-faq-item:hover{transform:translateY(-2px);}
+
+        /* 칩 */
+        .dq-chip{transition:transform .13s ease;white-space:nowrap;flex-shrink:0;cursor:pointer;}
+        .dq-chip:hover{transform:scale(1.08) translateY(-1px);}
+        .dq-chip:active{transform:scale(.92);}
+
+        /* 뒤로 */
+        .dq-back{transition:transform .13s ease;cursor:pointer;}
+        .dq-back:hover{transform:translateX(-3px);}
+
+        /* 검색 포커스 */
+        .dq-sf:focus-within{box-shadow:0 0 0 3px rgba(255,215,0,.44)!important;border-color:rgba(255,215,0,.72)!important;}
+
+        /* 스크롤 */
+        .dq-sc::-webkit-scrollbar{width:4px;height:4px;}
+        .dq-sc::-webkit-scrollbar-track{background:transparent;}
+        .dq-sc::-webkit-scrollbar-thumb{background:#CCC9A8;border-radius:4px;}
+
+        /* 말풍선 */
+        .dq-bubble{
+          position:relative;background:#fff;
+          border-radius:18px 18px 18px 4px;
+          padding:11px 15px;
+          border:1.5px solid rgba(255,215,0,.32);
+          box-shadow:0 4px 16px rgba(0,0,0,.07);
         }
-      >
-        <div
-          onPointerDown={startDrag}
-          onPointerMove={moveDrag}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          className={`shrink-0 bg-white border-b border-[#F3D86A] px-6 pt-3 pb-4 ${
-            isMobile ? "" : "cursor-grab active:cursor-grabbing"
-          }`}
-        >
-          {!isMobile && (
-            <div className="flex justify-center mb-2">
-              <div className="w-12 h-1.5 rounded-full bg-[#E6D6A7]" />
-            </div>
-          )}
+        .dq-bubble::after{content:'';position:absolute;bottom:-9px;left:16px;border:9px solid transparent;border-top-color:#fff;border-bottom:0;}
+        .dq-bubble::before{content:'';position:absolute;bottom:-11px;left:14.5px;border:10px solid transparent;border-top-color:rgba(255,215,0,.32);border-bottom:0;}
 
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[12px] font-extrabold text-[#FF9F43] mb-1">Diki Camp Help</p>
-              <h2 className="text-[23px] font-extrabold text-[#111] tracking-[-0.03em]">디키캠프 FAQ</h2>
-              <p className="text-[12px] text-[#777] mt-0.5">빠르게 답변을 확인해보세요</p>
+        /* 챗봇 Q */
+        .dq-chat-q{
+          background:#fff;border-radius:18px 18px 18px 4px;
+          padding:13px 16px;border:1.5px solid #E8E8E8;
+          box-shadow:0 2px 10px rgba(0,0,0,.05);cursor:pointer;
+          transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
+        }
+        .dq-chat-q:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.09);}
+
+        /* 챗봇 A */
+        .dq-chat-a{
+          background:linear-gradient(135deg,#FFFDE8,#FFF9CC);
+          border-radius:4px 18px 18px 18px;
+          padding:14px 16px;border:1.5px solid rgba(255,215,0,.28);
+        }
+
+        /* 신청 버튼 */
+        .dq-signup-btn{
+          display:flex;align-items:center;gap:14px;
+          background:#fff;border-radius:20px;padding:18px 20px;
+          border:2px solid;cursor:pointer;font-family:inherit;
+          transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease;
+          position:relative;overflow:hidden;
+          text-decoration:none;
+        }
+        .dq-signup-btn:hover{transform:translateY(-4px) scale(1.02);}
+        .dq-signup-btn:active{transform:scale(.96);}
+
+        /* 녹색 버튼 */
+        .dq-gbtn{
+          display:inline-flex;align-items:center;justify-content:center;
+          background:linear-gradient(135deg,#6CC24A,#4EA832);
+          color:#fff;border:none;border-radius:50px;font-weight:800;
+          cursor:pointer;text-decoration:none;font-family:inherit;
+          transition:transform .15s ease,box-shadow .15s ease;
+          box-shadow:0 4px 14px rgba(108,194,74,.35);
+        }
+        .dq-gbtn:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 22px rgba(108,194,74,.46);}
+        .dq-gbtn:active{transform:scale(.95);}
+
+        /* 닫기 */
+        .dq-close{transition:transform .13s ease,background .13s ease;}
+        .dq-close:hover{transform:rotate(90deg);}
+
+        /* 캐릭터 흰 원형 */
+        .dq-char{border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+
+        /* 별 반짝이 */
+        @keyframes dq-twinkle{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+        .dq-star{animation:dq-twinkle var(--dur,2s) ease-in-out infinite;animation-delay:var(--delay,0s);}
+
+        /* 카드 캐릭터 bounce */
+        @keyframes dq-char-idle{0%,100%{transform:translateY(8px)}50%{transform:translateY(2px)}}
+        .dq-char-idle{animation:dq-char-idle 2.5s ease-in-out infinite;}
+      `}</style>
+
+      <div className="dq">
+
+        {/* ══ FAB ══ */}
+        {!isOpen&&(
+          <div className="dq-fab" style={{position:"fixed",bottom:"120px",right:"28px",zIndex:9999}}>
+            {/* 왼쪽 말풍선 라벨 */}
+            <div style={{
+              position:"absolute",right:"76px",top:"50%",transform:"translateY(-50%)",
+              background:"#fff",borderRadius:"14px 14px 4px 14px",
+              padding:"8px 14px",
+              boxShadow:"0 4px 18px rgba(0,0,0,.13)",
+              border:"1.5px solid rgba(255,215,0,.45)",
+              whiteSpace:"nowrap",pointerEvents:"none",
+            }}>
+              <div style={{fontSize:"12px",fontWeight:900,color:"#1C1C1C",lineHeight:1.4}}>궁금한 게 있으신가요? 💛</div>
+              <div style={{fontSize:"10px",color:"#999",marginTop:"1px"}}>디키캠프 FAQ 도우미</div>
+              {/* 말풍선 꼬리 오른쪽 */}
+              <div style={{
+                position:"absolute",right:"-7px",top:"50%",transform:"translateY(-50%)",
+                width:0,height:0,
+                borderTop:"6px solid transparent",
+                borderBottom:"6px solid transparent",
+                borderLeft:"7px solid #fff",
+              }}/>
             </div>
 
-            <button
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={closeWidget}
-              className="w-10 h-10 rounded-full bg-[#FFF8E3] text-[22px] text-[#777] leading-none flex items-center justify-center hover:bg-[#FFF1A6]"
-            >
-              ×
+            {/* 원형 FAB 버튼 */}
+            <button type="button"
+              onClick={()=>{setIsOpen(true);setPos({x:0,y:0});setTimeout(()=>searchEl.current?.focus(),440);}}
+              className="dq-fab-btn"
+              style={{
+                width:"72px",height:"72px",borderRadius:"50%",
+                background:"linear-gradient(145deg,#FFFFFF,#FFF9E6)",
+                border:"4px solid #FFD700",
+                boxShadow:"0 8px 28px rgba(255,215,0,.45),0 3px 10px rgba(0,0,0,.14)",
+                cursor:"pointer",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                position:"relative",padding:0,overflow:"visible",
+              }}>
+              <img src="/main-char.png" alt="디키캠프" style={{
+                width:"58px",height:"58px",objectFit:"contain",
+                filter:"drop-shadow(0 2px 6px rgba(0,0,0,.20))",
+              }}/>
+              {/* 빨간 ? 뱃지 */}
+              <div style={{
+                position:"absolute",top:"-5px",right:"-5px",
+                width:"24px",height:"24px",borderRadius:"50%",
+                background:"linear-gradient(135deg,#FF4757,#FF6B81)",
+                border:"2.5px solid #fff",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                boxShadow:"0 2px 8px rgba(255,71,87,.45)",
+                fontSize:"13px",fontWeight:900,color:"#fff",lineHeight:1,
+              }}>?</div>
             </button>
           </div>
-        </div>
+        )}
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 select-text">
-          <div className="bg-white rounded-[22px] border border-[#F3D86A] px-4 py-3 mb-3 shadow-[0_8px_22px_rgba(120,90,20,0.05)]">
-            <div className="flex items-center gap-3">
-              <div className="w-[40px] h-[40px] rounded-[15px] bg-[#FFF1A6] flex items-center justify-center shrink-0">
-                <img src="/diki-character.png" alt="디키캠프 캐릭터" className="w-[27px] h-[27px] object-contain" />
+        {/* ══ 패널 ══ */}
+        {isOpen&&(
+          <section
+            className={isDesktop?"dq-desk-anim":"dq-mob-anim"}
+            style={{
+              position:"fixed",zIndex:9999,
+              display:"flex",flexDirection:"column",overflow:"hidden",
+              background:"#FAFAF3",
+              cursor:isDragging?"grabbing":"default",
+              ...(isDesktop?{
+                left:`calc(50% + ${pos.x}px)`,top:`calc(50% + ${pos.y}px)`,
+                transform:"translate(-50%,-50%)",
+                width:"580px",height:"84vh",maxHeight:"820px",
+                borderRadius:"28px",
+                boxShadow:"0 28px 70px rgba(60,50,0,.16),0 4px 14px rgba(60,50,0,.08)",
+                transition:isDragging?"none":"box-shadow .2s ease",
+              }:{
+                left:0,right:0,bottom:0,height:"92dvh",
+                borderRadius:"28px 28px 0 0",
+                boxShadow:"0 -10px 44px rgba(60,50,0,.14)",
+              }),
+            }}
+          >
+            {/* ── 헤더 ── */}
+            <div onMouseDown={startDrag}
+              style={{
+                flexShrink:0,
+                background:"linear-gradient(135deg,#FFF176 0%,#FFE234 100%)",
+                padding:"18px 20px 20px",
+                position:"relative",overflow:"hidden",
+                cursor:isDesktop?"grab":"default",userSelect:"none",
+              }}>
+
+              {/* 배경 키즈 장식 — 별, 원, 하트 */}
+              <div className="dq-star" style={{"--dur":"2.2s","--delay":"0s",position:"absolute",top:"10px",right:"54px",fontSize:"18px",opacity:.5} as React.CSSProperties}>⭐</div>
+              <div className="dq-star" style={{"--dur":"1.8s","--delay":"0.4s",position:"absolute",top:"28px",right:"24px",fontSize:"12px",opacity:.3} as React.CSSProperties}>✨</div>
+              <div className="dq-star" style={{"--dur":"2.6s","--delay":"0.8s",position:"absolute",bottom:"18px",left:"30px",fontSize:"14px",opacity:.25} as React.CSSProperties}>🌟</div>
+              <div style={{position:"absolute",top:"-20px",right:"-20px",width:"100px",height:"100px",
+                borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
+              <div style={{position:"absolute",bottom:"-24px",left:"40%",width:"70px",height:"70px",
+                borderRadius:"50%",background:"rgba(255,255,255,.08)",pointerEvents:"none"}}/>
+
+              {/* 모바일 핸들 */}
+              {!isDesktop&&<div style={{width:"40px",height:"5px",background:"rgba(255,255,255,.35)",
+                borderRadius:"3px",margin:"0 auto 14px"}}/>}
+
+              {/* 타이틀 행 */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative"}}>
+                <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+                  {(isResult||isSignup)&&(
+                    <button type="button" onClick={handleBack} className="dq-back"
+                      style={{
+                        width:"36px",height:"36px",borderRadius:"50%",
+                        background:"rgba(255,255,255,.7)",
+                        border:"none",
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        flexShrink:0,
+                        boxShadow:"0 2px 8px rgba(120,80,0,.15)",
+                        backdropFilter:"blur(4px)",
+                      }}>
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M11 4L6.5 9L11 14" stroke="#3D2000" strokeWidth="2.2"
+                          strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  )}
+                  <div>
+                    <div style={{fontSize:"9px",fontWeight:900,color:"rgba(255,255,255,.8)",
+                      letterSpacing:"0.18em",marginBottom:"2px"}}>DIKI CAMP</div>
+                    <div style={{
+                      fontSize:(isResult||isSignup)?"17px":"22px",fontWeight:900,
+                      color:"#2D1800",letterSpacing:"-0.02em",lineHeight:1.2,
+                      textShadow:"0 1px 3px rgba(255,255,255,.5)",
+                    }}>
+                      {isSignup ? "신청 알림 받기 🔔"
+                       : isResult
+                        ? viewMode==="search"   ?`"${searchText}" 검색 결과`
+                          : viewMode==="category" ? selectedCat
+                          : "전체 FAQ"
+                        : "무엇을 도와드릴까요?"}
+                    </div>
+                    
+                  </div>
+                </div>
+                <button type="button" onClick={()=>{ setIsOpen(false); setViewMode("intro"); setSearchText(""); setSelectedCat(""); setOpenId(null); }} aria-label="닫기" className="dq-close"
+                  style={{
+                    width:"36px",height:"36px",borderRadius:"50%",
+                    background:"rgba(255,255,255,.5)",border:"1.5px solid rgba(120,80,0,.15)",
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    fontSize:"18px",color:"#3D2000",cursor:"pointer",flexShrink:0,
+                  }}>×</button>
               </div>
-              <div className="min-w-0">
-                <p className="text-[15px] font-extrabold leading-[1.35] text-[#222]">안녕하세요. 디키캠프 FAQ입니다.</p>
-                <p className="text-[11.5px] text-[#777] leading-[1.45] mt-1">검색하거나 카테고리를 선택해 답변을 확인해보세요.</p>
-              </div>
+
+              {/* 말풍선 인삿말 (인트로만) */}
+              {isIntro&&(
+                <div style={{marginTop:"12px",display:"flex",alignItems:"flex-end",gap:"12px"}}>
+                  {/* 캐릭터 — 크게, 살짝 튀어나오는 효과 */}
+                  <div style={{
+                    width:"52px",height:"52px",borderRadius:"50%",
+                    background:"rgba(255,255,255,.9)",
+                    border:"2.5px solid rgba(255,180,0,.5)",
+                    boxShadow:"0 4px 14px rgba(120,80,0,.18)",
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    flexShrink:0,marginBottom:"12px",
+                    animation:"dq-bob 2s ease-in-out infinite",
+                  }}>
+                    <img src="/blue-char.png" alt="도우미" style={{width:"38px",height:"38px",objectFit:"contain"}}/>
+                  </div>
+                  {/* 말풍선 */}
+                  <div style={{
+                    flex:1,background:"#FFFDE7",
+                    borderRadius:"18px 18px 18px 4px",
+                    padding:"12px 16px",
+                    boxShadow:"0 4px 14px rgba(180,140,0,.14)",
+                    border:"1.5px solid rgba(255,220,0,.4)",
+                    position:"relative",
+                  }}>
+                    <p style={{fontSize:"13px",fontWeight:700,color:"#555",margin:"0 0 4px",lineHeight:1.5}}>
+                      안녕하세요! 저는 디키캠프 도우미예요 😊
+                    </p>
+                    <p style={{fontSize:"13px",fontWeight:800,color:"#1C1C1C",margin:0,lineHeight:1.55}}>
+                      궁금한 내용을 <span style={{color:"#FF6B35",background:"rgba(255,107,53,.12)",borderRadius:"6px",padding:"2px 7px",fontWeight:900}}>검색</span>하거나 아래 <span style={{color:"#00A878",background:"rgba(0,168,120,.12)",borderRadius:"6px",padding:"2px 7px",fontWeight:900}}>카테고리</span>를 눌러보세요! 👇
+                    </p>
+                    {/* 말풍선 꼬리 */}
+                    <div style={{position:"absolute",bottom:"-9px",left:"15px",
+                      width:0,height:0,borderLeft:"9px solid transparent",
+                      borderRight:"5px solid transparent",
+                      borderTop:"9px solid #FFFDE7"}}/>
+                    <div style={{position:"absolute",bottom:"-11px",left:"13.5px",
+                      width:0,height:0,borderLeft:"10px solid transparent",
+                      borderRight:"6px solid transparent",
+                      borderTop:"10px solid rgba(255,220,0,.4)"}}/>
+                  </div>
+                </div>
+              )}
+
+              {/* 검색창 */}
+              {!isSignup&&(
+                <div className="dq-sf"
+                  style={{
+                    display:"flex",alignItems:"center",gap:"10px",
+                    background:"rgba(255,255,255,.95)",
+                    borderRadius:"16px",padding:"11px 16px",
+                    border:"2px solid rgba(255,255,255,.8)",
+                    boxShadow:"0 4px 16px rgba(120,80,0,.10)",
+                    transition:"box-shadow .2s ease,border-color .2s ease",
+                    marginTop:isIntro?"14px":"12px",
+                  }}>
+                  <span style={{fontSize:"15px",flexShrink:0,opacity:.55}}>🔍</span>
+                  <input ref={searchEl}
+                    value={searchText}
+                    onChange={e=>handleSearch(e.target.value)}
+                    placeholder={isResult?"다시 검색...":"비용, 일정, 준비물, 주차 검색"}
+                    style={{flex:1,background:"transparent",border:"none",outline:"none",
+                      fontSize:"14px",fontWeight:700,color:"#1C1C1C",fontFamily:"inherit"}}/>
+                  {searchText&&(
+                    <button type="button" onClick={()=>handleSearch("")}
+                      style={{background:"rgba(0,0,0,.08)",border:"none",borderRadius:"50%",
+                        width:"22px",height:"22px",fontSize:"13px",cursor:"pointer",
+                        display:"flex",alignItems:"center",justifyContent:"center",color:"#666"}}>×</button>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
 
-          <div className="bg-white rounded-[20px] border border-[#F3D86A] px-4 py-3 flex items-center gap-2.5 mb-3 shadow-[0_6px_18px_rgba(120,90,20,0.04)]">
-            <span className="text-[17px]">🔎</span>
-            <input
-              type="text"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setOpenedId(null);
-                setHasCategoryClicked(false);
-                setSelectedCategory("전체");
-              }}
-              placeholder="비용, 참가비, 일정 등을 검색해보세요"
-              className="w-full bg-transparent outline-none text-[14px] text-[#222] placeholder:text-[#b7b0a5]"
-            />
-          </div>
-
-          {!shouldShowFaqList && (
-            <div className="mb-3">
-              <p className="text-[13px] font-bold text-[#555] mb-2">최근 검색 질문</p>
-
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {recentFaqList.length > 0
-                  ? recentFaqList.map((item) => (
-                      <button
-                        type="button"
-                        key={item.id}
-                        onClick={() => handleRecentClick(item)}
-                        className="shrink-0 max-w-[260px] px-4 py-2 rounded-full bg-[#FFF7F0] border border-[#FFD7B0] text-[12.5px] font-semibold text-[#7A4A1E] truncate hover:bg-[#FFF1E3]"
-                      >
-                        {item.question}
+            {/* 결과 화면 카테고리 칩 */}
+            {isResult&&(
+              <div style={{flexShrink:0,background:"#FAFAF3",padding:"10px 20px 8px",borderBottom:"1px solid rgba(0,0,0,.06)"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}}>
+                  <span style={{fontSize:"10px",fontWeight:900,color:"#ABABBB",letterSpacing:"0.08em"}}>카테고리</span>
+                  <button type="button" onClick={handleAll} className="dq-chip"
+                    style={{padding:"4px 13px",borderRadius:"20px",fontSize:"11px",fontWeight:800,
+                      border:"none",cursor:"pointer",fontFamily:"inherit",
+                      background:viewMode==="all"?"#1C1C1C":"#fff",
+                      color:viewMode==="all"?"#fff":"#6A6A72",
+                      boxShadow:viewMode==="all"?"0 3px 10px rgba(0,0,0,.18)":"0 2px 6px rgba(0,0,0,.07)"}}>전체</button>
+                </div>
+                <div className="dq-sc" style={{display:"flex",gap:"7px",overflowX:"auto",paddingBottom:"3px"}}>
+                  {allCats.map((cat,i)=>{
+                    const p=getPalette(i);
+                    const active=selectedCat===cat&&viewMode==="category";
+                    return(
+                      <button key={cat} type="button" onClick={()=>handleCat(cat)} className="dq-chip"
+                        style={{display:"flex",alignItems:"center",gap:"5px",
+                          padding:"6px 13px",borderRadius:"20px",fontSize:"12px",fontWeight:800,
+                          border:"none",cursor:"pointer",fontFamily:"inherit",
+                          background:active?p.border:"#fff",color:active?"#fff":"#555",
+                          boxShadow:active?`0 4px 12px ${p.border}44`:"0 2px 6px rgba(0,0,0,.07)"}}>
+                        {cat}
                       </button>
-                    ))
-                  : DEFAULT_SEARCH_HINTS.map((keyword) => (
-                      <button
-                        type="button"
-                        key={keyword}
-                        onClick={() => handleSearchHintClick(keyword)}
-                        className="shrink-0 max-w-[260px] px-4 py-2 rounded-full bg-[#FFF7F0] border border-[#FFD7B0] text-[12.5px] font-semibold text-[#7A4A1E] truncate hover:bg-[#FFF1E3]"
-                      >
-                        {keyword}
-                      </button>
-                    ))}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
-            {categoryList.map((category) => {
-              const isActive = selectedCategory === category && hasCategoryClicked;
+            {/* ── 스크롤 본문 ── */}
+            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"16px 20px 20px",
+              display:"flex",flexDirection:"column",gap:"12px"}}>
 
-              return (
-                <button
-                  type="button"
-                  key={category}
-                  onClick={() => {
-                    setSelectedCategory(category);
-                    setHasCategoryClicked(true);
-                    setSearch("");
-                    setOpenedId(null);
-                  }}
-                  className={`shrink-0 rounded-full px-4 py-2.5 text-[13px] font-bold border transition-all ${
-                    isActive
-                      ? "bg-[#FFE66D] border-[#DDBB25] text-[#111] shadow-[0_7px_16px_rgba(255,215,64,0.36)]"
-                      : "bg-white border-[#F3D86A] text-[#5B5346] shadow-[0_4px_12px_rgba(80,60,20,0.04)] hover:border-[#E8C83F] hover:bg-[#FFF9E6]"
-                  }`}
-                >
-                  {category}
-                </button>
-              );
-            })}
-          </div>
+              {/* 로딩 */}
+              {loading&&(
+                <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"14px"}}>
+                  <img src="/main-char.png" alt="로딩" style={{width:"64px",height:"64px",objectFit:"contain",animation:"dq-bob 1s ease-in-out infinite"}}/>
+                  <div style={{fontSize:"13px",fontWeight:800,color:"#ABABBB"}}>FAQ를 불러오는 중이에요</div>
+                </div>
+              )}
 
-          {isLoading && (
-            <div className="py-14 text-center">
-              <div className="mx-auto mb-4 w-8 h-8 rounded-full border-4 border-[#FFE66D] border-t-transparent animate-spin" />
-              <p className="text-[14px] text-[#888]">FAQ를 불러오는 중입니다.</p>
-            </div>
-          )}
+              {/* ══ 신청 화면 ══ */}
+              {!loading&&isSignup&&(
+                <div style={{display:"flex",flexDirection:"column",gap:"16px",paddingTop:"4px"}}>
+                  <div style={{textAlign:"center",padding:"8px 0 4px"}}>
+                    <div style={{fontSize:"36px",marginBottom:"8px"}}>🔔</div>
+                    <p style={{fontSize:"13px",color:"#6A6A72",lineHeight:1.7,margin:0}}>
+                      디키캠프 소식을 가장 먼저 받아보세요!<br/>
+                      <span style={{color:"#1C1C1C",fontWeight:800}}>원하는 알림을 선택해주세요.</span>
+                    </p>
+                  </div>
 
-          {!isLoading && !loadError && !shouldShowFaqList && (
-            <div className="bg-white rounded-[24px] border border-[#F3D86A] p-6 text-center">
-              <p className="text-[16px] font-extrabold text-[#333] mb-2">궁금한 내용을 찾아보세요.</p>
-              <p className="text-[13px] text-[#888] leading-[1.7]">
-                검색창에 키워드를 입력하거나
-                <br />
-                카테고리를 선택하면 FAQ가 표시됩니다.
-              </p>
-            </div>
-          )}
+                  {/* 얼리버드 신청 버튼 */}
+                  <a href={EARLYBIRD_FORM_URL} target="_blank" rel="noreferrer"
+                    className="dq-signup-btn"
+                    style={{borderColor:"#FFD700",boxShadow:"0 6px 20px rgba(255,215,0,.28)"}}>
+                    <div style={{position:"absolute",top:"-16px",right:"-16px",width:"60px",height:"60px",
+                      borderRadius:"50%",background:"rgba(255,215,0,.12)",pointerEvents:"none"}}/>
+                    <div style={{
+                      width:"52px",height:"52px",borderRadius:"18px",flexShrink:0,
+                      background:"linear-gradient(135deg,#FFD700,#FFC200)",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:"26px",
+                      boxShadow:"0 4px 12px rgba(255,215,0,.45)",
+                    }}>🐣</div>
+                    <div style={{flex:1,textAlign:"left"}}>
+                      <div style={{fontSize:"15px",fontWeight:900,color:"#1C1C1C",marginBottom:"4px"}}>
+                        얼리버드 알림 신청
+                      </div>
+                      <div style={{fontSize:"11px",color:"#888",lineHeight:1.6}}>
+                        캠프 오픈 전 가장 먼저 소식을 받고<br/>특별한 얼리버드 혜택을 누리세요!
+                      </div>
+                    </div>
+                    <div style={{fontSize:"20px",flexShrink:0,color:"#FFD700"}}>→</div>
+                  </a>
 
-          {!isLoading && loadError && (
-            <div className="bg-white rounded-[24px] border border-[#F3D86A] p-6 text-center">
-              <p className="text-[15px] font-bold text-[#333] mb-2">데이터를 불러오지 못했어요.</p>
-              <p className="text-[13px] text-[#888]">Apps Script API 연결 상태를 확인해주세요.</p>
-            </div>
-          )}
+                  {/* 특별 혜택가 신청 버튼 */}
+                  <a href={SPECIAL_FORM_URL} target="_blank" rel="noreferrer"
+                    className="dq-signup-btn"
+                    style={{borderColor:"#6CC24A",boxShadow:"0 6px 20px rgba(108,194,74,.25)"}}>
+                    <div style={{position:"absolute",top:"-16px",right:"-16px",width:"60px",height:"60px",
+                      borderRadius:"50%",background:"rgba(108,194,74,.10)",pointerEvents:"none"}}/>
+                    <div style={{
+                      width:"52px",height:"52px",borderRadius:"18px",flexShrink:0,
+                      background:"linear-gradient(135deg,#6CC24A,#4EA832)",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:"26px",
+                      boxShadow:"0 4px 12px rgba(108,194,74,.4)",
+                    }}>🎁</div>
+                    <div style={{flex:1,textAlign:"left"}}>
+                      <div style={{fontSize:"15px",fontWeight:900,color:"#1C1C1C",marginBottom:"4px"}}>
+                        특별 혜택가 알림 신청
+                      </div>
+                      <div style={{fontSize:"11px",color:"#888",lineHeight:1.6}}>
+                        1회 이상 참여하신 분만 신청 가능해요.<br/>기존 참여자 전용 특별가 혜택을 놓치지 마세요!
+                      </div>
+                    </div>
+                    <div style={{fontSize:"20px",flexShrink:0,color:"#6CC24A"}}>→</div>
+                  </a>
 
-          {!isLoading && !loadError && shouldShowFaqList && filteredFaqList.length === 0 && (
-            <div className="bg-white rounded-[24px] border border-[#F3D86A] p-7 text-center">
-              <p className="text-[16px] font-bold text-[#333] mb-2">검색 결과가 없습니다.</p>
-              <p className="text-[13px] text-[#888] leading-[1.6]">
-                다른 단어로 검색하거나
-                <br />
-                문의 남기기를 이용해주세요.
-              </p>
-            </div>
-          )}
+                  {/* 캐릭터 장식 */}
+                  <div style={{display:"flex",justifyContent:"center",gap:"20px",marginTop:"8px",opacity:.7}}>
+                    <img src="/flower-char.png" alt="" style={{width:"44px",height:"44px",objectFit:"contain",transform:"rotate(-10deg)"}}/>
+                    <img src="/main-char.png" alt="" style={{width:"48px",height:"48px",objectFit:"contain"}}/>
+                    <img src="/dog-char.png" alt="" style={{width:"44px",height:"44px",objectFit:"contain",transform:"rotate(10deg)"}}/>
+                  </div>
+                </div>
+              )}
 
-          {!isLoading && !loadError && shouldShowFaqList && filteredFaqList.length > 0 && (
-            <div className="space-y-3 pb-3">
-              {filteredFaqList.map((item) => {
-                const isOpened = openedId === item.id;
-                const label = item.subCategory || item.category;
-                const isReservationAlert = isReservationAlertItem(item);
-                const displayAnswer = getFixedAnswer(item);
-
-                return (
-                  <article
-                    key={item.id}
-                    className="bg-white border border-[#F3D86A] rounded-[24px] overflow-hidden shadow-[0_8px_22px_rgba(120,90,20,0.05)]"
-                  >
-                    <button type="button" onClick={() => handleFaqClick(item)} className="w-full text-left p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          {label && <p className="text-[12px] font-bold text-[#FF9F43] mb-1.5">{label}</p>}
-                          <h3 className="text-[16px] font-extrabold text-[#222] leading-[1.5] tracking-[-0.02em]">
-                            {item.question}
-                          </h3>
-                        </div>
-                        <span
-                          className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[21px] font-light transition-all ${
-                            isOpened ? "bg-[#FFF1A6] text-[#222]" : "bg-[#FFF8E3] text-[#888]"
-                          }`}
+              {/* ══ 인트로 ══ */}
+              {!loading&&isIntro&&(
+                <>
+                  {/* 인기 질문 — 콤팩트 가로 스크롤 칩 */}
+                  <div style={{
+                    background:"rgba(255,255,255,.82)",
+                    borderRadius:"16px",
+                    border:"1.5px solid rgba(255,215,0,.25)",
+                    padding:"8px 12px 10px",
+                    boxShadow:"0 2px 10px rgba(255,215,0,.09)",
+                  }}>
+                    <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"8px"}}>
+                      <span style={{fontSize:"13px"}}>🔥</span>
+                      <span style={{fontSize:"11px",fontWeight:900,color:"#6A5000"}}>
+                        {popularFaqs.length>0 ? "많이 본 질문" : "자주 묻는 질문"}
+                      </span>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+                      {(popularFaqs.length>0 ? popularFaqs.slice(0,2) : faqs.slice(0,2)).map((item,idx)=>(
+                        <button key={item.id} type="button"
+                          onClick={()=>{
+                            handleCat(item.mainCategory);
+                            setTimeout(()=>handleFaq(item),60);
+                          }}
+                          style={{
+                            background: idx===0?"rgba(255,215,0,.18)":idx===1?"rgba(200,200,200,.15)":"rgba(205,127,50,.12)",
+                            border:`1.5px solid ${idx===0?"rgba(255,215,0,.4)":idx===1?"rgba(180,180,180,.3)":"rgba(205,127,50,.25)"}`,
+                            borderRadius:"12px",
+                            padding:"8px 12px",
+                            textAlign:"left",
+                            cursor:"pointer",fontFamily:"inherit",
+                            display:"flex",alignItems:"center",gap:"8px",
+                            transition:"transform .14s ease,box-shadow .14s ease",
+                          }}
+                          onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 4px 10px rgba(0,0,0,.08)";}}
+                          onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="none";}}
                         >
-                          {isOpened ? "−" : "+"}
-                        </span>
+                          <span style={{
+                            fontSize:"11px",fontWeight:900,flexShrink:0,
+                            width:"20px",height:"20px",borderRadius:"50%",
+                            background:idx===0?"#FFD700":idx===1?"#C0C0C0":"#CD7F32",
+                            display:"flex",alignItems:"center",justifyContent:"center",
+                            color:idx===0?"#5A3500":"#fff",
+                          }}>{idx+1}</span>
+                          <span style={{flex:1,fontSize:"12px",fontWeight:700,color:"#2A2A2A",lineHeight:1.4}}>{item.question}</span>
+                          {(popularFaqs.length>0 && clickCounts[item.id]>0) && (
+                            <span style={{fontSize:"10px",fontWeight:800,color:"#FF6B35",
+                              background:"rgba(255,107,53,.10)",borderRadius:"8px",
+                              padding:"1px 6px",flexShrink:0}}>
+                              {clickCounts[item.id]}회
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 카테고리 3열 그리드 */}
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"7px"}}>
+
+                    {/* 신청 카드 — 항상 첫번째 */}
+                    <button type="button" onClick={()=>setViewMode("signup")}
+                      className="dq-cat"
+                      style={{
+                        background:"linear-gradient(160deg,#FFE860,#FFD700)",
+                        border:"2px solid #E6C400",
+                        borderRadius:"20px",padding:"10px 8px 0",
+                        textAlign:"center",cursor:"pointer",fontFamily:"inherit",
+                        display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",
+                        position:"relative",overflow:"hidden",height:"112px",
+                        boxShadow:"0 6px 20px rgba(255,215,0,.40)",
+                      }}>
+                      <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
+                        borderRadius:"50%",background:"rgba(255,255,255,.20)",pointerEvents:"none"}}/>
+                      <div style={{fontSize:"14px",fontWeight:900,color:"#5A3500",fontFamily:"'Nunito',sans-serif",lineHeight:1.3,
+                        wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 4px"}}>
+                        신청하기
+                      </div>
+                      <div style={{width:"28px",height:"3px",borderRadius:"2px",
+                        background:"rgba(120,53,15,.35)",zIndex:1}}/>
+                      <div style={{width:"100%",display:"flex",justifyContent:"center",
+                        alignItems:"flex-end",height:"34px",marginTop:"auto"}}>
+                        <img src="/snake-char.png" alt="신청" className="dq-char-idle"
+                          style={{width:"48px",height:"48px",objectFit:"contain",
+                            filter:"drop-shadow(0 -2px 6px rgba(0,0,0,.14))"}}/>
                       </div>
                     </button>
 
-                    {isOpened && (
-                      <div className="px-4 pb-4">
-                        <div className="border-t border-[#F3D86A] pt-3">
-                          {isReservationAlert ? (
-                            <div>
-                              <div className="text-[14.5px] leading-[1.8] text-[#555] mb-4">
-                                {renderAnswerText(displayAnswer)}
-                              </div>
+                    {/* 일반 카테고리 카드 */}
+                    {visibleCats.map((cat,i)=>{
+                      const p=getPalette(i);
+                      const charImg=getCatChar(cat);
+                      return(
+                        <button key={cat} type="button" onClick={()=>handleCat(cat)}
+                          className="dq-cat"
+                          style={{
+                            background:p.bg,
+                            border:`2px solid ${p.border}`,
+                            borderRadius:"20px",padding:"14px 10px 0",
+                            textAlign:"center",
+                            boxShadow:`0 4px 16px ${p.border}44`,
+                            fontFamily:"inherit",cursor:"pointer",
+                            display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",
+                            position:"relative",overflow:"hidden",height:"112px",
+                          }}>
+                          {/* 배경 원형 */}
+                          <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
+                            borderRadius:"50%",background:"rgba(255,255,255,.28)",pointerEvents:"none"}}/>
+                          {/* 카테고리명 */}
+                          <div style={{fontSize:"12px",fontWeight:900,color:p.text,fontFamily:"'Nunito',sans-serif",
+                            lineHeight:1.3,wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>
+                            {cat}
+                          </div>
 
-                              <div className="grid grid-cols-1 gap-2.5">
-                                <button
-                                  type="button"
-                                  onClick={() => openExternalLink(EARLY_BIRD_FORM_URL)}
-                                  className="w-full rounded-[18px] bg-[#FFF1A6] border border-[#E8C83F] px-4 py-3 text-[14px] font-extrabold text-[#222] shadow-[0_6px_16px_rgba(255,230,109,0.26)] transition-all hover:brightness-[0.98] active:scale-[0.98]"
-                                >
-                                  얼리버드 알림 신청
-                                </button>
+                          {/* 캐릭터 — 하단 삐죽 */}
+                          <div style={{width:"100%",display:"flex",justifyContent:"center",
+                            alignItems:"flex-end",height:"34px",marginTop:"auto"}}>
+                            <img src={charImg} alt={cat} className="dq-char-idle"
+                              style={{width:"48px",height:"48px",objectFit:"contain",
+                                filter:`drop-shadow(0 -2px 6px ${p.border}66)`}}/>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() => openExternalLink(BENEFIT_FORM_URL)}
-                                  className="w-full rounded-[18px] bg-[#FFF8E3] border border-[#E8C83F] px-4 py-3 text-[14px] font-extrabold text-[#5B4324] shadow-[0_6px_16px_rgba(120,80,20,0.08)] transition-all hover:bg-[#FFF3CF] active:scale-[0.98]"
-                                >
-                                  특별 혜택가 알림 신청
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-[14.5px] leading-[1.8] text-[#555]">
-                              {renderAnswerText(displayAnswer)}
-                            </div>
+                  {/* 캐릭터 일러스트 배경 장식 — 여백 채우기 */}
+                  <div style={{
+                    background:"linear-gradient(135deg,rgba(255,215,0,.08),rgba(108,194,74,.06))",
+                    borderRadius:"20px",padding:"18px 20px",
+                    display:"flex",alignItems:"center",justifyContent:"space-around",
+                    border:"1.5px dashed rgba(255,215,0,.35)",
+                    position:"relative",overflow:"hidden",
+                    minHeight:"70px",
+                    margin:"2px 0 4px",padding:"10px 20px",
+                  }}>
+                    {/* 배경 원형 */}
+                    <div style={{position:"absolute",left:"-20px",bottom:"-20px",width:"80px",height:"80px",
+                      borderRadius:"50%",background:"rgba(255,215,0,.08)",pointerEvents:"none"}}/>
+                    <div style={{position:"absolute",right:"-16px",top:"-16px",width:"60px",height:"60px",
+                      borderRadius:"50%",background:"rgba(108,194,74,.08)",pointerEvents:"none"}}/>
+                    {/* 캐릭터들 */}
+                    <div style={{display:"flex",alignItems:"flex-end",gap:"0"}}>
+                      <img src="/flower-char.png" alt="" style={{width:"54px",height:"54px",objectFit:"contain",
+                        transform:"rotate(-8deg) translateY(4px)",filter:"drop-shadow(0 2px 6px rgba(0,0,0,.10))"}}/>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:"13px",fontWeight:800,color:"#5A3A00",lineHeight:1.5}}>
+                        더 궁금한 게 있으신가요?
+                      </div>
+                      <div style={{fontSize:"11px",color:"#888",marginTop:"2px"}}>아래 버튼으로 문의해보세요 😊</div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"flex-end",gap:"0"}}>
+                      <img src="/dog-char.png" alt="" style={{width:"54px",height:"54px",objectFit:"contain",
+                        transform:"rotate(8deg) translateY(4px)",filter:"drop-shadow(0 2px 6px rgba(0,0,0,.10))"}}/>
+                    </div>
+                  </div>
+
+                  {/* 문의 배너 */}
+                  <div style={{
+                    background:"linear-gradient(135deg,#4EA832,#3A8A22)",
+                    borderRadius:"18px",padding:"14px 18px",
+                    display:"flex",alignItems:"center",justifyContent:"space-between",
+                    boxShadow:"0 6px 20px rgba(78,168,50,.30)",gap:"12px",
+                    position:"relative",overflow:"hidden",marginTop:"4px",
+                  }}>
+                    <div style={{position:"absolute",right:"-12px",top:"-12px",width:"60px",height:"60px",
+                      borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
+                    <div style={{position:"absolute",right:"76px",bottom:"-8px",opacity:.20,pointerEvents:"none"}}>
+                      <img src="/flower-char.png" alt="" style={{width:"36px",height:"36px",objectFit:"contain"}}/>
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:"13px",fontWeight:900,color:"#fff",marginBottom:"4px"}}>원하는 답변이 없나요?</div>
+                      <div style={{fontSize:"12px",color:"rgba(255,255,255,.92)",lineHeight:1.4,fontWeight:700,whiteSpace:"nowrap"}}>문의사항 남겨주시면 담당자가 순차적으로 답변드려요 😊</div>
+                    </div>
+                    <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer"
+                      style={{
+                        background:"#FFD700",color:"#1A1A00",borderRadius:"12px",
+                        padding:"8px 12px",fontSize:"11px",fontWeight:900,textDecoration:"none",
+                        flexShrink:0,boxShadow:"0 3px 10px rgba(255,215,0,.40)",whiteSpace:"nowrap",
+                      }}>
+                      문의하기 →
+                    </a>
+                  </div>
+                </>
+              )}
+
+              {/* ══ 결과 없음 ══ */}
+              {!loading&&isResult&&visibleFaqs.length===0&&(
+                <div style={{flex:1,display:"flex",flexDirection:"column",
+                  alignItems:"center",justifyContent:"center",
+                  background:"rgba(255,255,255,.7)",borderRadius:"24px",padding:"44px 24px",
+                  boxShadow:"0 4px 16px rgba(0,0,0,.05)"}}>
+                  <img src="/snake-char.png" alt="" style={{width:"72px",height:"72px",objectFit:"contain",
+                    marginBottom:"14px",filter:"drop-shadow(0 4px 8px rgba(0,0,0,.12))"}}/>
+                  <div style={{fontSize:"16px",fontWeight:900,color:"#1C1C1C",marginBottom:"8px"}}>검색 결과가 없어요</div>
+                  <div style={{fontSize:"12px",color:"#6A6A72",lineHeight:1.8,marginBottom:"24px",textAlign:"center"}}>
+                    다른 단어로 검색하거나<br/>카테고리를 선택해보세요
+                  </div>
+                  <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer"
+                    className="dq-gbtn" style={{padding:"12px 28px",fontSize:"13px",fontWeight:900}}>
+                    문의 남기기
+                  </a>
+                </div>
+              )}
+
+              {/* ══ FAQ 리스트 ══ */}
+              {!loading&&isResult&&visibleFaqs.length>0&&(
+                <>
+
+
+                  {visibleFaqs.map((item)=>{
+                    const active=openId===item.id;
+                    const label=item.subCategory||item.mainCategory;
+                    const idx=allCats.indexOf(item.mainCategory);
+                    const p=getPalette(idx);
+                    const preview=item.answer.replace(/\n/g," ").slice(0,65);
+                    return(
+                      <div key={item.id}>
+                        <div className="dq-faq-item dq-chat-q"
+                          onClick={()=>handleFaq(item)}
+                          style={{
+                            boxShadow:active?`0 6px 20px ${p.border}44`:"0 2px 10px rgba(0,0,0,.05)",
+                            borderColor:active?p.border:"#E8E8E8",
+                          }}>
+                          {label&&(
+                            <span style={{display:"inline-flex",alignItems:"center",gap:"4px",
+                              background:p.bg,color:p.text,
+                              borderRadius:"8px",padding:"2px 9px",fontSize:"10px",fontWeight:900,
+                              marginBottom:"7px",border:`1.5px solid ${p.border}44`}}>
+                              {label}
+                            </span>
+                          )}
+                          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"10px"}}>
+                            <p style={{fontSize:"13px",fontWeight:800,color:"#1C1C1C",lineHeight:1.65,margin:0,flex:1}}>
+                              {item.question}
+                            </p>
+                            <div style={{
+                              width:"26px",height:"26px",borderRadius:"50%",flexShrink:0,
+                              background:active?p.border:"#F0EFE8",
+                              display:"flex",alignItems:"center",justifyContent:"center",
+                              fontSize:"15px",fontWeight:900,
+                              color:active?"#fff":"#ABABBB",
+                              transform:active?"rotate(45deg)":"rotate(0)",
+                              transition:"all .22s cubic-bezier(.34,1.56,.64,1)",
+                            }}>+</div>
+                          </div>
+                          {!active&&(
+                            <p style={{fontSize:"11px",color:"#6A6A72",lineHeight:1.6,margin:"4px 0 0",
+                              overflow:"hidden"}}>
+                              {preview}{item.answer.length>65?"...":""}
+                            </p>
                           )}
                         </div>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
-        <div className="shrink-0 px-5 py-2.5 bg-white border-t border-[#F3D86A]">
-          <button
-            type="button"
-            onClick={() => openExternalLink(GOOGLE_FORM_URL)}
-            className="w-full h-[38px] rounded-full bg-[#FFE66D] text-[#111] text-[14px] font-extrabold shadow-[0_4px_10px_rgba(255,230,109,0.26)] transition-all hover:brightness-[0.98] active:scale-[0.98]"
-          >
-            문의 남기기
-          </button>
-        </div>
-      </section>
+                        {active&&(
+                          <div className="dq-ans" style={{marginTop:"8px",display:"flex",justifyContent:"flex-end",gap:"8px",alignItems:"flex-start"}}>
+                            <div className="dq-chat-a" style={{flex:1,maxWidth:"92%"}}>
+                              <p style={{fontSize:"13px",color:"#444",lineHeight:1.9,margin:0,whiteSpace:"pre-line"}}>
+                                {item.answer}
+                              </p>
+                              {item.contact&&(
+                                <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer"
+                                  className="dq-gbtn"
+                                  style={{marginTop:"12px",padding:"9px 20px",fontSize:"12px",fontWeight:900}}>
+                                  문의 남기기 →
+                                </a>
+                              )}
+                            </div>
+                            <div className="dq-char"
+                              style={{width:"30px",height:"30px",marginTop:"4px",flexShrink:0,
+                                border:"1.5px solid rgba(255,215,0,.38)",
+                                boxShadow:"0 2px 8px rgba(255,215,0,.24)"}}>
+                              <img src="/main-char.png" alt="답변" style={{width:"20px",height:"20px",objectFit:"contain"}}/>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* 하단 문의 배너 */}
+                  <div style={{
+                    background:"linear-gradient(135deg,#4EA832,#3A8A22)",
+                    borderRadius:"20px",padding:"18px 20px 20px",
+                    display:"flex",alignItems:"center",justifyContent:"space-between",
+                    boxShadow:"0 6px 20px rgba(78,168,50,.30)",gap:"14px",
+                    position:"relative",overflow:"visible",
+                    marginBottom:"8px",flexShrink:0,
+                  }}>
+                    <div style={{position:"absolute",right:"-14px",top:"-14px",width:"70px",height:"70px",
+                      borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:"14px",fontWeight:900,color:"#fff",marginBottom:"3px"}}>원하는 답변이 없나요?</div>
+                      <div style={{fontSize:"11px",color:"rgba(255,255,255,.88)",lineHeight:1.6}}>문의사항을 남겨주시면 순차적으로 답변드려요.</div>
+                    </div>
+                    <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer"
+                      style={{
+                        background:"#FFD700",color:"#1A1A00",borderRadius:"14px",
+                        padding:"11px 20px",fontSize:"13px",fontWeight:900,textDecoration:"none",
+                        flexShrink:0,boxShadow:"0 4px 14px rgba(255,215,0,.44)",whiteSpace:"nowrap",
+                      }}>
+                      문의하기 →
+                    </a>
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
     </>
   );
 }
