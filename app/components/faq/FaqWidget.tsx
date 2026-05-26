@@ -724,12 +724,12 @@ export default function FaqWidget() {
                       }}>
                       <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
                         borderRadius:"50%",background:"rgba(255,255,255,.20)",pointerEvents:"none"}}/>
-                      <div style={{fontSize:"14px",fontWeight:900,color:"#5A3500",fontFamily:"'Nunito',sans-serif",lineHeight:1.3,
-                        wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 4px"}}>
+                      <div style={{fontSize:"13px",fontWeight:900,color:"#5A3500",fontFamily:"'Nunito','Noto Sans KR',sans-serif",lineHeight:1.3,
+                        wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>
                         신청하기
                       </div>
                       <div style={{width:"28px",height:"3px",borderRadius:"2px",
-                        background:"rgba(120,53,15,.35)",zIndex:1}}/>
+                        background:"rgba(120,53,15,.40)",zIndex:1}}/>
                       <div style={{width:"100%",display:"flex",justifyContent:"center",
                         alignItems:"flex-end",height:"28px",marginTop:"auto"}}>
                         <img src="/snake-char.png" alt="신청" className="dq-char-idle"
@@ -763,8 +763,9 @@ export default function FaqWidget() {
                             lineHeight:1.3,wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>
                             {cat}
                           </div>
-
-                          {/* 캐릭터 — 하단 삐죽 */}
+                          {/* 포인트 바 — 신청하기 카드와 통일 */}
+                          <div style={{width:"28px",height:"3px",borderRadius:"2px",
+                            background:`${p.border}`,zIndex:1}}/>
                           <div style={{width:"100%",display:"flex",justifyContent:"center",
                             alignItems:"flex-end",height:"28px",marginTop:"auto"}}>
                             <img src={charImg} alt={cat} className="dq-char-idle"
