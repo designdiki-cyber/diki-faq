@@ -201,9 +201,9 @@ export default function FaqWidget() {
         .dq-fab-btn:active{transform:scale(.93);}
 
         @keyframes dq-panel-in{from{transform:translate(-50%,-50%) scale(.82);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
-        @keyframes dq-mob-in{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+        @keyframes dq-mob-in{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
         .dq-desk-anim{animation:dq-panel-in .4s cubic-bezier(.34,1.4,.64,1) both;}
-        .dq-mob-anim{animation:dq-mob-in .38s cubic-bezier(.34,1.4,.64,1) both;}
+        .dq-mob-anim{animation:dq-mob-in .15s ease both;}
 
         @keyframes dq-bounce{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-7px) scale(1.06)}70%{transform:translateY(-2px) scale(.98)}100%{transform:translateY(0) scale(1)}}
         .dq-cat{transition:box-shadow .2s ease;cursor:pointer;}
