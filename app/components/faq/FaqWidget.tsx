@@ -66,7 +66,6 @@ function normalize(item: RawFaqItem, i: number): FaqItem|null {
   };
 }
 
-/* 카테고리 카드 팔레트 — 쨍하고 밝은 키즈 컬러 */
 const PALETTES = [
   {bg:"#3BF4FB",border:"#00C8D4",text:"#003A40",char:"/blue-char.png"},
   {bg:"#48CA02",border:"#2EA000",text:"#0D3800",char:"/snake-char.png"},
@@ -77,7 +76,6 @@ const PALETTES = [
 ];
 function getPalette(i:number){return PALETTES[i%PALETTES.length];}
 
-/* 카테고리 캐릭터 배정 */
 function getCatChar(cat:string):string{
   if(cat.includes("일정")||cat.includes("운영")||cat.includes("날짜")) return "/blue-char.png";
   if(cat.includes("비용")||cat.includes("참가비")||cat.includes("결제")||cat.includes("환불")) return "/snake-char.png";
@@ -88,7 +86,8 @@ function getCatChar(cat:string):string{
 }
 
 export default function FaqWidget() {
-  const [isOpen,setIsOpen]           = useState(false);
+  // ✅ 수정 1: false → true (페이지 로드 시 바로 열림)
+  const [isOpen,setIsOpen]           = useState(true);
   const [faqs,setFaqs]               = useState<FaqItem[]>([]);
   const [loading,setLoading]         = useState(false);
   const [viewMode,setViewMode]       = useState<ViewMode>("intro");
@@ -111,7 +110,6 @@ export default function FaqWidget() {
     return ()=>window.removeEventListener("resize",ck);
   },[]);
 
-  // Google Sheets에서 클릭 카운트 로드
   useEffect(()=>{
     (async()=>{
       try{
@@ -136,7 +134,6 @@ export default function FaqWidget() {
     })();
   },[isOpen]);
 
-  // 인기 질문 — 클릭 많은 순 top 3
   const popularFaqs = useMemo(()=>{
     if (faqs.length===0) return [];
     return [...faqs]
@@ -162,7 +159,6 @@ export default function FaqWidget() {
   const handleBack =()=>{setViewMode("intro");setSearchText("");setSelectedCat("");setOpenId(null);};
   const handleFaq  =(item:FaqItem)=>{
     setOpenId(p=>p===item.id?null:item.id);
-    // 클릭 카운트 — Google Sheets에 저장 (낙관적 업데이트)
     setClickCounts(prev=>({...prev,[item.id]:(Number(prev[item.id])||0)+1}));
     fetch(`${APPS_SCRIPT_URL}?action=click&faqId=${encodeURIComponent(item.id)}`,{
       method:"GET",cache:"no-store",
@@ -196,7 +192,6 @@ export default function FaqWidget() {
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
         .dq *{font-family:'Nunito','Noto Sans KR',-apple-system,sans-serif;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
 
-        /* FAB */
         @keyframes dq-fab-in{from{transform:scale(.4) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
         @keyframes dq-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
         @keyframes dq-glow{0%,100%{box-shadow:0 6px 24px rgba(255,215,0,.3)}50%{box-shadow:0 14px 38px rgba(255,215,0,.58)}}
@@ -205,42 +200,34 @@ export default function FaqWidget() {
         .dq-fab-btn:hover{animation:none;transform:translateY(-4px) scale(1.06);box-shadow:0 16px 44px rgba(255,215,0,.62);}
         .dq-fab-btn:active{transform:scale(.93);}
 
-        /* 패널 */
         @keyframes dq-panel-in{from{transform:translate(-50%,-50%) scale(.82);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
         @keyframes dq-mob-in{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
         .dq-desk-anim{animation:dq-panel-in .4s cubic-bezier(.34,1.4,.64,1) both;}
         .dq-mob-anim{animation:dq-mob-in .38s cubic-bezier(.34,1.4,.64,1) both;}
 
-        /* 카테고리 카드 */
         @keyframes dq-bounce{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-7px) scale(1.06)}70%{transform:translateY(-2px) scale(.98)}100%{transform:translateY(0) scale(1)}}
         .dq-cat{transition:box-shadow .2s ease;cursor:pointer;}
         .dq-cat:hover{animation:dq-bounce .42s cubic-bezier(.34,1.56,.64,1);box-shadow:0 14px 32px rgba(0,0,0,.16)!important;}
         .dq-cat:active{transform:scale(.90);}
 
-        /* FAQ */
         @keyframes dq-ans-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
         .dq-ans{animation:dq-ans-in .24s ease both}
         .dq-faq-item{transition:transform .18s ease,box-shadow .18s ease,border-color .16s ease;}
         .dq-faq-item:hover{transform:translateY(-2px);}
 
-        /* 칩 */
         .dq-chip{transition:transform .13s ease;white-space:nowrap;flex-shrink:0;cursor:pointer;}
         .dq-chip:hover{transform:scale(1.08) translateY(-1px);}
         .dq-chip:active{transform:scale(.92);}
 
-        /* 뒤로 */
         .dq-back{transition:transform .13s ease;cursor:pointer;}
         .dq-back:hover{transform:translateX(-3px);}
 
-        /* 검색 포커스 */
         .dq-sf:focus-within{box-shadow:0 0 0 3px rgba(255,215,0,.44)!important;border-color:rgba(255,215,0,.72)!important;}
 
-        /* 스크롤 */
         .dq-sc::-webkit-scrollbar{width:4px;height:4px;}
         .dq-sc::-webkit-scrollbar-track{background:transparent;}
         .dq-sc::-webkit-scrollbar-thumb{background:#CCC9A8;border-radius:4px;}
 
-        /* 말풍선 */
         .dq-bubble{
           position:relative;background:#fff;
           border-radius:18px 18px 18px 4px;
@@ -251,7 +238,6 @@ export default function FaqWidget() {
         .dq-bubble::after{content:'';position:absolute;bottom:-9px;left:16px;border:9px solid transparent;border-top-color:#fff;border-bottom:0;}
         .dq-bubble::before{content:'';position:absolute;bottom:-11px;left:14.5px;border:10px solid transparent;border-top-color:rgba(255,215,0,.32);border-bottom:0;}
 
-        /* 챗봇 Q */
         .dq-chat-q{
           background:#fff;border-radius:18px 18px 18px 4px;
           padding:13px 16px;border:1.5px solid #E8E8E8;
@@ -260,14 +246,12 @@ export default function FaqWidget() {
         }
         .dq-chat-q:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.09);}
 
-        /* 챗봇 A */
         .dq-chat-a{
           background:linear-gradient(135deg,#FFFDE8,#FFF9CC);
           border-radius:4px 18px 18px 18px;
           padding:14px 16px;border:1.5px solid rgba(255,215,0,.28);
         }
 
-        /* 신청 버튼 */
         .dq-signup-btn{
           display:flex;align-items:center;gap:14px;
           background:#fff;border-radius:20px;padding:18px 20px;
@@ -279,7 +263,6 @@ export default function FaqWidget() {
         .dq-signup-btn:hover{transform:translateY(-4px) scale(1.02);}
         .dq-signup-btn:active{transform:scale(.96);}
 
-        /* 녹색 버튼 */
         .dq-gbtn{
           display:inline-flex;align-items:center;justify-content:center;
           background:linear-gradient(135deg,#6CC24A,#4EA832);
@@ -291,11 +274,9 @@ export default function FaqWidget() {
         .dq-gbtn:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 22px rgba(108,194,74,.46);}
         .dq-gbtn:active{transform:scale(.95);}
 
-        /* 닫기 */
         .dq-close{transition:transform .13s ease,background .13s ease;}
         .dq-close:hover{transform:rotate(90deg);}
 
-        /* 작은 화면 반응형 */
         @media (max-height: 700px) {
           .dq-sc { gap: 4px !important; }
         }
@@ -303,72 +284,20 @@ export default function FaqWidget() {
           .dq-cat { border-radius: 16px !important; }
         }
 
-        /* 캐릭터 흰 원형 */
         .dq-char{border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
 
-        /* 별 반짝이 */
         @keyframes dq-twinkle{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
         .dq-star{animation:dq-twinkle var(--dur,2s) ease-in-out infinite;animation-delay:var(--delay,0s);}
 
-        /* 카드 캐릭터 bounce */
         @keyframes dq-char-idle{0%,100%{transform:translateY(8px)}50%{transform:translateY(2px)}}
         .dq-char-idle{animation:dq-char-idle 2.5s ease-in-out infinite;}
       `}</style>
 
       <div className="dq">
 
-        {/* ══ FAB ══ */}
-        {!isOpen&&(
+        {/* ✅ 수정 2: FAB 버튼 완전히 제거 (false && 로 렌더링 차단) */}
+        {false && (
           <div className="dq-fab" style={{position:"fixed",bottom:"320px",right:"52px",zIndex:9999}}>
-            {/* 왼쪽 말풍선 라벨 */}
-            <div style={{
-              position:"absolute",right:"88px",top:"50%",transform:"translateY(-50%)",
-              background:"#fff",borderRadius:"14px 14px 4px 14px",
-              padding:"8px 14px",
-              boxShadow:"0 4px 18px rgba(0,0,0,.13)",
-              border:"1.5px solid rgba(255,215,0,.45)",
-              whiteSpace:"nowrap",pointerEvents:"none",
-            }}>
-              <div style={{fontSize:"13px",fontWeight:900,color:"#1C1C1C",lineHeight:1.4}}>궁금한 게 있으신가요? 💛</div>
-              <div style={{fontSize:"11px",color:"#48CA02",fontWeight:800,marginTop:"2px"}}>디키캠프 FAQ 도우미</div>
-              {/* 말풍선 꼬리 오른쪽 */}
-              <div style={{
-                position:"absolute",right:"-7px",top:"50%",transform:"translateY(-50%)",
-                width:0,height:0,
-                borderTop:"6px solid transparent",
-                borderBottom:"6px solid transparent",
-                borderLeft:"7px solid #fff",
-              }}/>
-            </div>
-
-            {/* 원형 FAB 버튼 */}
-            <button type="button"
-              onClick={()=>{setIsOpen(true);setPos({x:0,y:0});setTimeout(()=>searchEl.current?.focus(),440);}}
-              className="dq-fab-btn"
-              style={{
-                width:"72px",height:"72px",borderRadius:"50%",
-                background:"linear-gradient(145deg,#FFFFFF,#FFF9E6)",
-                border:"4px solid #FFD700",
-                boxShadow:"0 8px 28px rgba(255,215,0,.45),0 3px 10px rgba(0,0,0,.14)",
-                cursor:"pointer",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                position:"relative",padding:0,overflow:"visible",
-              }}>
-              <img src="/main-char.png" alt="디키캠프" style={{
-                width:"58px",height:"58px",objectFit:"contain",
-                filter:"drop-shadow(0 2px 6px rgba(0,0,0,.20))",
-              }}/>
-              {/* 빨간 ? 뱃지 */}
-              <div style={{
-                position:"absolute",top:"38px",right:"-8px",
-                width:"22px",height:"22px",borderRadius:"50%",
-                background:"linear-gradient(135deg,#FF4757,#FF6B81)",
-                border:"2.5px solid #fff",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                boxShadow:"0 2px 8px rgba(255,71,87,.45)",
-                fontSize:"12px",fontWeight:900,color:"#fff",lineHeight:1,
-              }}>?</div>
-            </button>
           </div>
         )}
 
@@ -407,7 +336,6 @@ export default function FaqWidget() {
                 cursor:isDesktop?"grab":"default",userSelect:"none",
               }}>
 
-              {/* 배경 키즈 장식 — 별, 원, 하트 */}
               <div className="dq-star" style={{"--dur":"2.2s","--delay":"0s",position:"absolute",top:"10px",right:"54px",fontSize:"18px",opacity:.5} as React.CSSProperties}>⭐</div>
               <div className="dq-star" style={{"--dur":"1.8s","--delay":"0.4s",position:"absolute",top:"28px",right:"24px",fontSize:"12px",opacity:.3} as React.CSSProperties}>✨</div>
               <div className="dq-star" style={{"--dur":"2.6s","--delay":"0.8s",position:"absolute",bottom:"18px",left:"30px",fontSize:"14px",opacity:.25} as React.CSSProperties}>🌟</div>
@@ -416,11 +344,9 @@ export default function FaqWidget() {
               <div style={{position:"absolute",bottom:"-24px",left:"40%",width:"70px",height:"70px",
                 borderRadius:"50%",background:"rgba(255,255,255,.08)",pointerEvents:"none"}}/>
 
-              {/* 모바일 핸들 */}
               {!isDesktop&&<div style={{width:"40px",height:"5px",background:"rgba(255,255,255,.35)",
                 borderRadius:"3px",margin:"0 auto 14px"}}/>}
 
-              {/* 타이틀 행 */}
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative"}}>
                 <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
                   {(isResult||isSignup)&&(
@@ -455,7 +381,6 @@ export default function FaqWidget() {
                           : "전체 FAQ"
                         : "무엇을 도와드릴까요?"}
                     </div>
-                    
                   </div>
                 </div>
                 <button type="button" onClick={()=>{ setIsOpen(false); setViewMode("intro"); setSearchText(""); setSelectedCat(""); setOpenId(null); }} aria-label="닫기" className="dq-close"
@@ -467,10 +392,8 @@ export default function FaqWidget() {
                   }}>×</button>
               </div>
 
-              {/* 말풍선 인삿말 (인트로만) */}
               {isIntro&&(
                 <div style={{marginTop:"12px",display:"flex",alignItems:"flex-end",gap:"12px"}}>
-                  {/* 캐릭터 — 크게, 살짝 튀어나오는 효과 */}
                   <div style={{
                     width:"52px",height:"52px",borderRadius:"50%",
                     background:"rgba(255,255,255,.9)",
@@ -482,7 +405,6 @@ export default function FaqWidget() {
                   }}>
                     <img src="/blue-char.png" alt="도우미" style={{width:"38px",height:"38px",objectFit:"contain"}}/>
                   </div>
-                  {/* 말풍선 */}
                   <div style={{
                     flex:1,background:"#FFFDE7",
                     borderRadius:"18px 18px 18px 4px",
@@ -497,7 +419,6 @@ export default function FaqWidget() {
                     <p style={{fontSize:"13px",fontWeight:800,color:"#1C1C1C",margin:0,lineHeight:1.55}}>
                       궁금한 내용을 <span style={{color:"#FF6B35",background:"rgba(255,107,53,.12)",borderRadius:"6px",padding:"2px 7px",fontWeight:900}}>검색</span>하거나 아래 <span style={{color:"#00A878",background:"rgba(0,168,120,.12)",borderRadius:"6px",padding:"2px 7px",fontWeight:900}}>카테고리</span>를 눌러보세요! 👇
                     </p>
-                    {/* 말풍선 꼬리 */}
                     <div style={{position:"absolute",bottom:"-9px",left:"15px",
                       width:0,height:0,borderLeft:"9px solid transparent",
                       borderRight:"5px solid transparent",
@@ -510,7 +431,6 @@ export default function FaqWidget() {
                 </div>
               )}
 
-              {/* 검색창 */}
               {!isSignup&&(
                 <div className="dq-sf"
                   style={{
@@ -539,7 +459,6 @@ export default function FaqWidget() {
               )}
             </div>
 
-            {/* 결과 화면 카테고리 칩 */}
             {isResult&&(
               <div style={{flexShrink:0,background:"#FAFAF3",padding:"10px 20px 8px",borderBottom:"1px solid rgba(0,0,0,.06)"}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}}>
@@ -570,11 +489,9 @@ export default function FaqWidget() {
               </div>
             )}
 
-            {/* ── 스크롤 본문 ── */}
             <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"10px 16px 6px",
               display:"flex",flexDirection:"column",gap:"6px"}}>
 
-              {/* 로딩 */}
               {loading&&(
                 <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"14px"}}>
                   <img src="/main-char.png" alt="로딩" style={{width:"64px",height:"64px",objectFit:"contain",animation:"dq-bob 1s ease-in-out infinite"}}/>
@@ -582,7 +499,6 @@ export default function FaqWidget() {
                 </div>
               )}
 
-              {/* ══ 신청 화면 ══ */}
               {!loading&&isSignup&&(
                 <div style={{display:"flex",flexDirection:"column",gap:"16px",paddingTop:"4px"}}>
                   <div style={{textAlign:"center",padding:"8px 0 4px"}}>
@@ -593,7 +509,6 @@ export default function FaqWidget() {
                     </p>
                   </div>
 
-                  {/* 얼리버드 신청 버튼 */}
                   <a href={EARLYBIRD_FORM_URL} target="_blank" rel="noreferrer"
                     className="dq-signup-btn"
                     style={{borderColor:"#FFD700",boxShadow:"0 6px 20px rgba(255,215,0,.28)"}}>
@@ -617,7 +532,6 @@ export default function FaqWidget() {
                     <div style={{fontSize:"20px",flexShrink:0,color:"#FFD700"}}>→</div>
                   </a>
 
-                  {/* 특별 혜택가 신청 버튼 */}
                   <a href={SPECIAL_FORM_URL} target="_blank" rel="noreferrer"
                     className="dq-signup-btn"
                     style={{borderColor:"#6CC24A",boxShadow:"0 6px 20px rgba(108,194,74,.25)"}}>
@@ -641,7 +555,6 @@ export default function FaqWidget() {
                     <div style={{fontSize:"20px",flexShrink:0,color:"#6CC24A"}}>→</div>
                   </a>
 
-                  {/* 캐릭터 장식 */}
                   <div style={{display:"flex",justifyContent:"center",gap:"20px",marginTop:"8px",opacity:.7}}>
                     <img src="/flower-char.png" alt="" style={{width:"44px",height:"44px",objectFit:"contain",transform:"rotate(-10deg)"}}/>
                     <img src="/main-char.png" alt="" style={{width:"48px",height:"48px",objectFit:"contain"}}/>
@@ -650,10 +563,8 @@ export default function FaqWidget() {
                 </div>
               )}
 
-              {/* ══ 인트로 ══ */}
               {!loading&&isIntro&&(
                 <>
-                  {/* 인기 질문 — 콤팩트 가로 스크롤 칩 */}
                   <div style={{
                     background:"rgba(255,255,255,.82)",
                     borderRadius:"16px",
@@ -707,10 +618,7 @@ export default function FaqWidget() {
                     </div>
                   </div>
 
-                  {/* 카테고리 3열 그리드 */}
                   <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"5px"}}>
-
-                    {/* 신청 카드 — 항상 첫번째 */}
                     <button type="button" onClick={()=>setViewMode("signup")}
                       className="dq-cat"
                       style={{
@@ -738,7 +646,6 @@ export default function FaqWidget() {
                       </div>
                     </button>
 
-                    {/* 일반 카테고리 카드 */}
                     {visibleCats.map((cat,i)=>{
                       const p=getPalette(i);
                       const charImg=getCatChar(cat);
@@ -755,15 +662,12 @@ export default function FaqWidget() {
                             display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",
                             position:"relative",overflow:"hidden",height:"96px",
                           }}>
-                          {/* 배경 원형 */}
                           <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
                             borderRadius:"50%",background:"rgba(255,255,255,.28)",pointerEvents:"none"}}/>
-                          {/* 카테고리명 */}
                           <div style={{fontSize:"13px",fontWeight:900,color:p.text,fontFamily:"'Nunito','Noto Sans KR',sans-serif",
                             lineHeight:1.3,wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>
                             {cat}
                           </div>
-                          {/* 포인트 바 — 신청하기 카드와 통일 */}
                           <div style={{width:"28px",height:"3px",borderRadius:"2px",
                             background:`${p.border}`,zIndex:1}}/>
                           <div style={{width:"100%",display:"flex",justifyContent:"center",
@@ -777,22 +681,18 @@ export default function FaqWidget() {
                     })}
                   </div>
 
-                  {/* 캐릭터 일러스트 배경 장식 — 여백 채우기 */}
                   <div style={{
                     background:"linear-gradient(135deg,rgba(255,215,0,.08),rgba(108,194,74,.06))",
                     borderRadius:"20px",padding:"10px 20px",
                     display:"flex",alignItems:"center",justifyContent:"space-around",
                     border:"1.5px dashed rgba(255,215,0,.35)",
                     position:"relative",overflow:"hidden",
-                    minHeight:"52px",
-                    margin:"0",
+                    minHeight:"52px",margin:"0",
                   }}>
-                    {/* 배경 원형 */}
                     <div style={{position:"absolute",left:"-20px",bottom:"-20px",width:"80px",height:"80px",
                       borderRadius:"50%",background:"rgba(255,215,0,.08)",pointerEvents:"none"}}/>
                     <div style={{position:"absolute",right:"-16px",top:"-16px",width:"60px",height:"60px",
                       borderRadius:"50%",background:"rgba(108,194,74,.08)",pointerEvents:"none"}}/>
-                    {/* 캐릭터들 */}
                     <div style={{display:"flex",alignItems:"flex-end",gap:"0"}}>
                       <img src="/flower-char.png" alt="" style={{width:"54px",height:"54px",objectFit:"contain",
                         transform:"rotate(-8deg) translateY(4px)",filter:"drop-shadow(0 2px 6px rgba(0,0,0,.10))"}}/>
@@ -809,7 +709,6 @@ export default function FaqWidget() {
                     </div>
                   </div>
 
-                  {/* 문의 배너 */}
                   <div style={{
                     background:"linear-gradient(135deg,#4EA832,#3A8A22)",
                     borderRadius:"18px",padding:"14px 18px",
@@ -840,7 +739,6 @@ export default function FaqWidget() {
                 </>
               )}
 
-              {/* ══ 결과 없음 ══ */}
               {!loading&&isResult&&visibleFaqs.length===0&&(
                 <div style={{flex:1,display:"flex",flexDirection:"column",
                   alignItems:"center",justifyContent:"center",
@@ -859,11 +757,8 @@ export default function FaqWidget() {
                 </div>
               )}
 
-              {/* ══ FAQ 리스트 ══ */}
               {!loading&&isResult&&visibleFaqs.length>0&&(
                 <>
-
-
                   {visibleFaqs.map((item)=>{
                     const active=openId===item.id;
                     const label=item.subCategory||item.mainCategory;
@@ -934,7 +829,6 @@ export default function FaqWidget() {
                     );
                   })}
 
-                  {/* 하단 문의 배너 */}
                   <div style={{
                     background:"linear-gradient(135deg,#4EA832,#3A8A22)",
                     borderRadius:"20px",padding:"18px 20px 20px",
