@@ -200,10 +200,10 @@ export default function FaqWidget() {
         .dq-fab-btn:hover{animation:none;transform:translateY(-4px) scale(1.06);box-shadow:0 16px 44px rgba(255,215,0,.62);}
         .dq-fab-btn:active{transform:scale(.93);}
 
-        @keyframes dq-panel-in{from{transform:translate(-50%,-50%) scale(.97);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
-        @keyframes dq-mob-in{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
-        .dq-desk-anim{animation:dq-panel-in .15s ease both;}
-        .dq-mob-anim{animation:dq-mob-in .15s ease both;}
+        @keyframes dq-panel-in{from{transform:translate(-50%,-50%) scale(1);opacity:1}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+        @keyframes dq-mob-in{from{transform:scale(1);opacity:1}to{transform:scale(1);opacity:1}}
+        .dq-desk-anim{}
+        .dq-mob-anim{}
 
         @keyframes dq-bounce{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-7px) scale(1.06)}70%{transform:translateY(-2px) scale(.98)}100%{transform:translateY(0) scale(1)}}
         .dq-cat{transition:box-shadow .2s ease;cursor:pointer;}
