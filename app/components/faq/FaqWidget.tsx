@@ -382,7 +382,7 @@ export default function FaqWidget() {
                     </div>
                   </div>
                 </div>
-                <button type="button" onClick={()=>{ setIsOpen(false); setViewMode("intro"); setSearchText(""); setSelectedCat(""); setOpenId(null); }} aria-label="닫기" className="dq-close"
+                <button type="button" onClick={()=>{ window.close(); }} aria-label="닫기" className="dq-close"
                   style={{
                     width:"36px",height:"36px",borderRadius:"50%",
                     background:"rgba(255,255,255,.5)",border:"1.5px solid rgba(120,80,0,.15)",
