@@ -95,7 +95,7 @@ export default function FaqWidget() {
   const [selectedCat,setSelectedCat] = useState("");
   const [openId,setOpenId]           = useState<string|null>(null);
   const [clickCounts,setClickCounts] = useState<Record<string,number>>({});
-  const [isDesktop,setIsDesktop]     = useState(false);
+  const [isDesktop,setIsDesktop]     = useState<boolean|null>(null);
   const [pos,setPos]                 = useState({x:0,y:0});
   const [isDragging,setIsDragging]   = useState(false);
 
@@ -166,7 +166,7 @@ export default function FaqWidget() {
   };
 
   const startDrag=(e:React.MouseEvent)=>{
-    if(!isDesktop) return;
+    if(isDesktop!==true) return;
     dragRef.current=true;setIsDragging(true);
     dragStart.current={x:e.clientX-pos.x,y:e.clientY-pos.y};
     document.body.style.userSelect="none";
@@ -302,9 +302,8 @@ export default function FaqWidget() {
         )}
 
         {/* ══ 패널 ══ */}
-        {isOpen&&(
+        {isOpen && isDesktop !== null &&(
           <section
-            className={isDesktop?"dq-desk-anim":"dq-mob-anim"}
             style={{
               position:"fixed",zIndex:9999,
               display:"flex",flexDirection:"column",overflow:"hidden",
@@ -333,7 +332,7 @@ export default function FaqWidget() {
                 background:"linear-gradient(135deg,#FFF176 0%,#FFE234 100%)",
                 padding:"14px 18px 16px",
                 position:"relative",overflow:"hidden",
-                cursor:isDesktop?"grab":"default",userSelect:"none",
+                cursor:isDesktop===true?"grab":"default",userSelect:"none",
               }}>
 
               <div className="dq-star" style={{"--dur":"2.2s","--delay":"0s",position:"absolute",top:"10px",right:"54px",fontSize:"18px",opacity:.5} as React.CSSProperties}>⭐</div>
@@ -344,7 +343,7 @@ export default function FaqWidget() {
               <div style={{position:"absolute",bottom:"-24px",left:"40%",width:"70px",height:"70px",
                 borderRadius:"50%",background:"rgba(255,255,255,.08)",pointerEvents:"none"}}/>
 
-              {!isDesktop&&<div style={{width:"40px",height:"5px",background:"rgba(255,255,255,.35)",
+              {isDesktop===false&&<div style={{width:"40px",height:"5px",background:"rgba(255,255,255,.35)",
                 borderRadius:"3px",margin:"0 auto 14px"}}/>}
 
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative"}}>
