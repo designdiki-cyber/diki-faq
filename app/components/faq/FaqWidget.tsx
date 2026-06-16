@@ -15,10 +15,10 @@ type FaqItem = {
 };
 type ViewMode = "intro" | "search" | "category" | "all" | "signup";
 
-const GOOGLE_FORM_URL    = "https://forms.gle/h8Er3uB9um6sC6Tw5";
-const APPS_SCRIPT_URL    = "https://script.google.com/macros/s/AKfycbyvhqZGiieK61MZXmH3La52_L_re4m2DtuWCnFmlfTrPO4kAiZwWlmSzj-aFpIT2LWS/exec";
-const EARLYBIRD_FORM_URL = "https://forms.gle/TvB2FCqBaiTf71uc9";
-const SPECIAL_FORM_URL   = "https://forms.gle/kQoL4ghh6sLwttvp9";
+const GOOGLE_FORM_URL   = "https://forms.gle/h8Er3uB9um6sC6Tw5";
+const APPS_SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbyvhqZGiieK61MZXmH3La52_L_re4m2DtuWCnFmlfTrPO4kAiZwWlmSzj-aFpIT2LWS/exec";
+const CAMP_RESERVE_URL  = "https://www.dikidiki.co.kr/post2_detail.do?seq=103871&type=2";
+const CAMP_WAITLIST_URL = "https://forms.gle/6wc3tgQQVKL9TYD17";
 
 const HIDDEN_CATEGORIES = ["직접 문의","문의접수","기타 문의","1:1 문의","문의남기기"];
 
@@ -45,10 +45,12 @@ function expandKeywords(kw: string): string[] {
   }
   return Array.from(result);
 }
+
 function matchesFaq(item: FaqItem, words: string[]): boolean {
   const t=[item.mainCategory,item.subCategory,item.question,item.answer].join(" ").toLowerCase().replace(/\s+/g,"");
   return words.some(w=>t.includes(w));
 }
+
 function normalize(item: RawFaqItem, i: number): FaqItem|null {
   const vis=item.노출여부;
   if (vis===false) return null;
@@ -60,19 +62,19 @@ function normalize(item: RawFaqItem, i: number): FaqItem|null {
     id:String(item.id||`faq-${i}`),
     mainCategory:String(item.mainCategory||item.대분류||"자주 묻는 질문").trim(),
     subCategory:String(item.subCategory||item.중분류||"").trim(),
-    question:q,answer:a,
+    question:q, answer:a,
     sortOrder:Number(item.sortOrder||item.정렬순서||i),
     contact:item.contact===true||item.문의유도===true||["TRUE","Y","예"].includes(String(item.문의유도||"")),
   };
 }
 
 const PALETTES = [
-  {bg:"#3BF4FB",border:"#00C8D4",text:"#003A40",char:"/blue-char.png"},
-  {bg:"#48CA02",border:"#2EA000",text:"#0D3800",char:"/snake-char.png"},
-  {bg:"#FF85C2",border:"#CC5090",text:"#5A0035",char:"/dog-char.png"},
-  {bg:"#3ECFCF",border:"#00A8A8",text:"#003535",char:"/flower-char.png"},
-  {bg:"#A78BFA",border:"#7C5CE0",text:"#2D006B",char:"/snake-char.png"},
-  {bg:"#CAFF8A",border:"#7ACC00",text:"#2A4A00",char:"/mouse-char.png"},
+  {bg:"#3BF4FB",border:"#00C8D4",text:"#003A40"},
+  {bg:"#48CA02",border:"#2EA000",text:"#0D3800"},
+  {bg:"#FF85C2",border:"#CC5090",text:"#5A0035"},
+  {bg:"#3ECFCF",border:"#00A8A8",text:"#003535"},
+  {bg:"#A78BFA",border:"#7C5CE0",text:"#2D006B"},
+  {bg:"#CAFF8A",border:"#7ACC00",text:"#2A4A00"},
 ];
 function getPalette(i:number){return PALETTES[i%PALETTES.length];}
 
@@ -86,7 +88,6 @@ function getCatChar(cat:string):string{
 }
 
 export default function FaqWidget() {
-  // ✅ 수정 1: false → true (페이지 로드 시 바로 열림)
   const [isOpen,setIsOpen]           = useState(true);
   const [faqs,setFaqs]               = useState<FaqItem[]>([]);
   const [loading,setLoading]         = useState(false);
@@ -99,10 +100,10 @@ export default function FaqWidget() {
   const [pos,setPos]                 = useState({x:0,y:0});
   const [isDragging,setIsDragging]   = useState(false);
 
-  const dragRef  = useRef(false);
-  const dragStart= useRef({x:0,y:0});
-  const frame    = useRef<number|null>(null);
-  const searchEl = useRef<HTMLInputElement>(null);
+  const dragRef   = useRef(false);
+  const dragStart = useRef({x:0,y:0});
+  const frame     = useRef<number|null>(null);
+  const searchEl  = useRef<HTMLInputElement>(null);
 
   useEffect(()=>{
     const ck=()=>setIsDesktop(window.innerWidth>=768);
@@ -113,15 +114,15 @@ export default function FaqWidget() {
   useEffect(()=>{
     (async()=>{
       try{
-        const res = await fetch(`${APPS_SCRIPT_URL}?action=getClicks`,{cache:"no-store"});
-        const data = await res.json();
-        if(data.success && data.clicks) setClickCounts(data.clicks);
-      }catch(e){ console.error("[클릭카운트 로드]",e); }
+        const res=await fetch(`${APPS_SCRIPT_URL}?action=getClicks`,{cache:"no-store"});
+        const data=await res.json();
+        if(data.success&&data.clicks) setClickCounts(data.clicks);
+      }catch(e){console.error("[클릭카운트]",e);}
     })();
   },[]);
 
   useEffect(()=>{
-    if (!isOpen) return;
+    if(!isOpen) return;
     (async()=>{
       try{
         setLoading(true);
@@ -134,12 +135,9 @@ export default function FaqWidget() {
     })();
   },[isOpen]);
 
-  const popularFaqs = useMemo(()=>{
-    if (faqs.length===0) return [];
-    return [...faqs]
-      .filter(f=>clickCounts[f.id]>0)
-      .sort((a,b)=>(clickCounts[b.id]||0)-(clickCounts[a.id]||0))
-      .slice(0,2);
+  const popularFaqs=useMemo(()=>{
+    if(faqs.length===0) return [];
+    return [...faqs].filter(f=>clickCounts[f.id]>0).sort((a,b)=>(clickCounts[b.id]||0)-(clickCounts[a.id]||0)).slice(0,2);
   },[faqs,clickCounts]);
 
   const allCats    =useMemo(()=>Array.from(new Set(faqs.map(f=>f.mainCategory).filter(Boolean))),[faqs]);
@@ -160,14 +158,12 @@ export default function FaqWidget() {
   const handleFaq  =(item:FaqItem)=>{
     setOpenId(p=>p===item.id?null:item.id);
     setClickCounts(prev=>({...prev,[item.id]:(Number(prev[item.id])||0)+1}));
-    fetch(`${APPS_SCRIPT_URL}?action=click&faqId=${encodeURIComponent(item.id)}`,{
-      method:"GET",cache:"no-store",
-    }).catch(()=>{});
+    fetch(`${APPS_SCRIPT_URL}?action=click&faqId=${encodeURIComponent(item.id)}`,{method:"GET",cache:"no-store"}).catch(()=>{});
   };
 
   const startDrag=(e:React.MouseEvent)=>{
     if(isDesktop!==true) return;
-    dragRef.current=true;setIsDragging(true);
+    dragRef.current=true; setIsDragging(true);
     dragStart.current={x:e.clientX-pos.x,y:e.clientY-pos.y};
     document.body.style.userSelect="none";
   };
@@ -178,12 +174,12 @@ export default function FaqWidget() {
       frame.current=requestAnimationFrame(()=>setPos({x:e.clientX-dragStart.current.x,y:e.clientY-dragStart.current.y}));
     };
     const up=()=>{dragRef.current=false;setIsDragging(false);document.body.style.userSelect="";};
-    window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up);
+    window.addEventListener("mousemove",mv); window.addEventListener("mouseup",up);
     return ()=>{window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);if(frame.current)cancelAnimationFrame(frame.current);};
   },[]);
 
   const isResult=viewMode!=="intro"&&viewMode!=="signup";
-  const isIntro=viewMode==="intro";
+  const isIntro =viewMode==="intro";
   const isSignup=viewMode==="signup";
 
   return(
@@ -191,295 +187,135 @@ export default function FaqWidget() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
         .dq *{font-family:'Nunito','Noto Sans KR',-apple-system,sans-serif;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
-
-        @keyframes dq-fab-in{from{transform:scale(.4) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
         @keyframes dq-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-        @keyframes dq-glow{0%,100%{box-shadow:0 6px 24px rgba(255,215,0,.3)}50%{box-shadow:0 14px 38px rgba(255,215,0,.58)}}
-        .dq-fab{animation:dq-fab-in .45s cubic-bezier(.34,1.56,.64,1) both}
-        .dq-fab-btn{animation:dq-bob 3s ease-in-out infinite,dq-glow 3s ease-in-out infinite;transition:transform .18s ease;}
-        .dq-fab-btn:hover{animation:none;transform:translateY(-4px) scale(1.06);box-shadow:0 16px 44px rgba(255,215,0,.62);}
-        .dq-fab-btn:active{transform:scale(.93);}
-
-        @keyframes dq-panel-in{from{transform:translate(-50%,-50%) scale(1);opacity:1}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
-        @keyframes dq-mob-in{from{transform:scale(1);opacity:1}to{transform:scale(1);opacity:1}}
-        .dq-desk-anim{}
-        .dq-mob-anim{}
-
         @keyframes dq-bounce{0%{transform:translateY(0) scale(1)}35%{transform:translateY(-7px) scale(1.06)}70%{transform:translateY(-2px) scale(.98)}100%{transform:translateY(0) scale(1)}}
+        @keyframes dq-ans-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes dq-twinkle{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+        @keyframes dq-char-idle{0%,100%{transform:translateY(8px)}50%{transform:translateY(2px)}}
         .dq-cat{transition:box-shadow .2s ease;cursor:pointer;}
         .dq-cat:hover{animation:dq-bounce .42s cubic-bezier(.34,1.56,.64,1);box-shadow:0 14px 32px rgba(0,0,0,.16)!important;}
         .dq-cat:active{transform:scale(.90);}
-
-        @keyframes dq-ans-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
         .dq-ans{animation:dq-ans-in .24s ease both}
         .dq-faq-item{transition:transform .18s ease,box-shadow .18s ease,border-color .16s ease;}
         .dq-faq-item:hover{transform:translateY(-2px);}
-
         .dq-chip{transition:transform .13s ease;white-space:nowrap;flex-shrink:0;cursor:pointer;}
         .dq-chip:hover{transform:scale(1.08) translateY(-1px);}
         .dq-chip:active{transform:scale(.92);}
-
         .dq-back{transition:transform .13s ease;cursor:pointer;}
         .dq-back:hover{transform:translateX(-3px);}
-
         .dq-sf:focus-within{box-shadow:0 0 0 3px rgba(255,215,0,.44)!important;border-color:rgba(255,215,0,.72)!important;}
-
         .dq-sc::-webkit-scrollbar{width:4px;height:4px;}
         .dq-sc::-webkit-scrollbar-track{background:transparent;}
         .dq-sc::-webkit-scrollbar-thumb{background:#CCC9A8;border-radius:4px;}
-
-        .dq-bubble{
-          position:relative;background:#fff;
-          border-radius:18px 18px 18px 4px;
-          padding:11px 15px;
-          border:1.5px solid rgba(255,215,0,.32);
-          box-shadow:0 4px 16px rgba(0,0,0,.07);
-        }
-        .dq-bubble::after{content:'';position:absolute;bottom:-9px;left:16px;border:9px solid transparent;border-top-color:#fff;border-bottom:0;}
-        .dq-bubble::before{content:'';position:absolute;bottom:-11px;left:14.5px;border:10px solid transparent;border-top-color:rgba(255,215,0,.32);border-bottom:0;}
-
-        .dq-chat-q{
-          background:#fff;border-radius:18px 18px 18px 4px;
-          padding:13px 16px;border:1.5px solid #E8E8E8;
-          box-shadow:0 2px 10px rgba(0,0,0,.05);cursor:pointer;
-          transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
-        }
+        .dq-chat-q{background:#fff;border-radius:18px 18px 18px 4px;padding:13px 16px;border:1.5px solid #E8E8E8;box-shadow:0 2px 10px rgba(0,0,0,.05);cursor:pointer;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;}
         .dq-chat-q:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.09);}
-
-        .dq-chat-a{
-          background:linear-gradient(135deg,#FFFDE8,#FFF9CC);
-          border-radius:4px 18px 18px 18px;
-          padding:14px 16px;border:1.5px solid rgba(255,215,0,.28);
-        }
-
-        .dq-signup-btn{
-          display:flex;align-items:center;gap:14px;
-          background:#fff;border-radius:20px;padding:18px 20px;
-          border:2px solid;cursor:pointer;font-family:inherit;
-          transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease;
-          position:relative;overflow:hidden;
-          text-decoration:none;
-        }
+        .dq-chat-a{background:linear-gradient(135deg,#FFFDE8,#FFF9CC);border-radius:4px 18px 18px 18px;padding:14px 16px;border:1.5px solid rgba(255,215,0,.28);}
+        .dq-signup-btn{display:flex;align-items:center;gap:14px;background:#fff;border-radius:20px;padding:18px 20px;border:2px solid;cursor:pointer;font-family:inherit;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease;position:relative;overflow:hidden;text-decoration:none;}
         .dq-signup-btn:hover{transform:translateY(-4px) scale(1.02);}
         .dq-signup-btn:active{transform:scale(.96);}
-
-        .dq-gbtn{
-          display:inline-flex;align-items:center;justify-content:center;
-          background:linear-gradient(135deg,#6CC24A,#4EA832);
-          color:#fff;border:none;border-radius:50px;font-weight:800;
-          cursor:pointer;text-decoration:none;font-family:inherit;
-          transition:transform .15s ease,box-shadow .15s ease;
-          box-shadow:0 4px 14px rgba(108,194,74,.35);
-        }
+        .dq-gbtn{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6CC24A,#4EA832);color:#fff;border:none;border-radius:50px;font-weight:800;cursor:pointer;text-decoration:none;font-family:inherit;transition:transform .15s ease,box-shadow .15s ease;box-shadow:0 4px 14px rgba(108,194,74,.35);}
         .dq-gbtn:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 22px rgba(108,194,74,.46);}
         .dq-gbtn:active{transform:scale(.95);}
-
         .dq-close{transition:transform .13s ease,background .13s ease;}
         .dq-close:hover{transform:rotate(90deg);}
-
-        @media (max-height: 700px) {
-          .dq-sc { gap: 4px !important; }
-        }
-        @media (max-width: 480px) {
-          .dq-cat { border-radius: 16px !important; }
-        }
-
         .dq-char{border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
-
-        @keyframes dq-twinkle{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
         .dq-star{animation:dq-twinkle var(--dur,2s) ease-in-out infinite;animation-delay:var(--delay,0s);}
-
-        @keyframes dq-char-idle{0%,100%{transform:translateY(8px)}50%{transform:translateY(2px)}}
         .dq-char-idle{animation:dq-char-idle 2.5s ease-in-out infinite;}
+        @media(max-height:700px){.dq-sc{gap:4px!important;}}
+        @media(max-width:480px){.dq-cat{border-radius:16px!important;}}
       `}</style>
 
       <div className="dq">
+        {isOpen&&isDesktop!==null&&(
+          <section style={{
+            position:"fixed",zIndex:9999,
+            display:"flex",flexDirection:"column",overflow:"hidden",
+            background:"#FAFAF3",
+            cursor:isDragging?"grabbing":"default",
+            ...(isDesktop?{
+              left:`calc(50% + ${pos.x}px)`,top:`calc(50% + ${pos.y}px)`,
+              transform:"translate(-50%,-50%)",
+              width:"min(580px, 92vw)",
+              maxHeight:"min(860px, 92vh)",
+              borderRadius:"28px",
+              boxShadow:"0 28px 70px rgba(60,50,0,.16),0 4px 14px rgba(60,50,0,.08)",
+              transition:isDragging?"none":"box-shadow .2s ease",
+            }:{
+              left:0,right:0,bottom:0,
+              height:"100dvh",
+              borderRadius:"28px 28px 0 0",
+              boxShadow:"0 -10px 44px rgba(60,50,0,.14)",
+            }),
+          }}>
 
-        {/* ✅ 수정 2: FAB 버튼 완전히 제거 (false && 로 렌더링 차단) */}
-        {false && (
-          <div className="dq-fab" style={{position:"fixed",bottom:"320px",right:"52px",zIndex:9999}}>
-          </div>
-        )}
-
-        {/* ══ 패널 ══ */}
-        {isOpen && isDesktop !== null &&(
-          <section
-            style={{
-              position:"fixed",zIndex:9999,
-              display:"flex",flexDirection:"column",overflow:"hidden",
-              background:"#FAFAF3",
-              cursor:isDragging?"grabbing":"default",
-              ...(isDesktop?{
-                left:`calc(50% + ${pos.x}px)`,top:`calc(50% + ${pos.y}px)`,
-                transform:"translate(-50%,-50%)",
-                width:"min(580px, 92vw)",
-                maxHeight:"min(860px, 92vh)",
-                borderRadius:"28px",
-                boxShadow:"0 28px 70px rgba(60,50,0,.16),0 4px 14px rgba(60,50,0,.08)",
-                transition:isDragging?"none":"box-shadow .2s ease",
-              }:{
-                left:0,right:0,bottom:0,
-                height:"100dvh",
-                borderRadius:"28px 28px 0 0",
-                boxShadow:"0 -10px 44px rgba(60,50,0,.14)",
-              }),
-            }}
-          >
             {/* ── 헤더 ── */}
-            <div onMouseDown={startDrag}
-              style={{
-                flexShrink:0,
-                background:"linear-gradient(135deg,#FFF176 0%,#FFE234 100%)",
-                padding:"14px 18px 16px",
-                position:"relative",overflow:"hidden",
-                cursor:isDesktop===true?"grab":"default",userSelect:"none",
-              }}>
-
+            <div onMouseDown={startDrag} style={{flexShrink:0,background:"linear-gradient(135deg,#FFF176 0%,#FFE234 100%)",padding:"14px 18px 16px",position:"relative",overflow:"hidden",cursor:isDesktop===true?"grab":"default",userSelect:"none"}}>
               <div className="dq-star" style={{"--dur":"2.2s","--delay":"0s",position:"absolute",top:"10px",right:"54px",fontSize:"18px",opacity:.5} as React.CSSProperties}>⭐</div>
               <div className="dq-star" style={{"--dur":"1.8s","--delay":"0.4s",position:"absolute",top:"28px",right:"24px",fontSize:"12px",opacity:.3} as React.CSSProperties}>✨</div>
               <div className="dq-star" style={{"--dur":"2.6s","--delay":"0.8s",position:"absolute",bottom:"18px",left:"30px",fontSize:"14px",opacity:.25} as React.CSSProperties}>🌟</div>
-              <div style={{position:"absolute",top:"-20px",right:"-20px",width:"100px",height:"100px",
-                borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
-              <div style={{position:"absolute",bottom:"-24px",left:"40%",width:"70px",height:"70px",
-                borderRadius:"50%",background:"rgba(255,255,255,.08)",pointerEvents:"none"}}/>
-
-              {isDesktop===false&&<div style={{width:"40px",height:"5px",background:"rgba(255,255,255,.35)",
-                borderRadius:"3px",margin:"0 auto 14px"}}/>}
-
+              <div style={{position:"absolute",top:"-20px",right:"-20px",width:"100px",height:"100px",borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
+              <div style={{position:"absolute",bottom:"-24px",left:"40%",width:"70px",height:"70px",borderRadius:"50%",background:"rgba(255,255,255,.08)",pointerEvents:"none"}}/>
+              {isDesktop===false&&<div style={{width:"40px",height:"5px",background:"rgba(255,255,255,.35)",borderRadius:"3px",margin:"0 auto 14px"}}/>}
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative"}}>
                 <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
                   {(isResult||isSignup)&&(
-                    <button type="button" onClick={handleBack} className="dq-back"
-                      style={{
-                        width:"36px",height:"36px",borderRadius:"50%",
-                        background:"rgba(255,255,255,.7)",
-                        border:"none",
-                        display:"flex",alignItems:"center",justifyContent:"center",
-                        flexShrink:0,
-                        boxShadow:"0 2px 8px rgba(120,80,0,.15)",
-                        backdropFilter:"blur(4px)",
-                      }}>
+                    <button type="button" onClick={handleBack} className="dq-back" style={{width:"36px",height:"36px",borderRadius:"50%",background:"rgba(255,255,255,.7)",border:"none",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(120,80,0,.15)",backdropFilter:"blur(4px)"}}>
                       <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                        <path d="M11 4L6.5 9L11 14" stroke="#3D2000" strokeWidth="2.2"
-                          strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M11 4L6.5 9L11 14" stroke="#3D2000" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </button>
                   )}
                   <div>
-                    <div style={{fontSize:"9px",fontWeight:900,color:"rgba(255,255,255,.8)",
-                      letterSpacing:"0.18em",marginBottom:"2px"}}>DIKI CAMP</div>
-                    <div style={{
-                      fontSize:(isResult||isSignup)?"17px":"22px",fontWeight:900,
-                      color:"#2D1800",letterSpacing:"-0.02em",lineHeight:1.2,
-                      textShadow:"0 1px 3px rgba(255,255,255,.5)",
-                    }}>
-                      {isSignup ? "신청 알림 받기 🔔"
-                       : isResult
-                        ? viewMode==="search"   ?`"${searchText}" 검색 결과`
-                          : viewMode==="category" ? selectedCat
-                          : "전체 FAQ"
-                        : "무엇을 도와드릴까요?"}
+                    <div style={{fontSize:"9px",fontWeight:900,color:"rgba(255,255,255,.8)",letterSpacing:"0.18em",marginBottom:"2px"}}>DIKI CAMP</div>
+                    <div style={{fontSize:(isResult||isSignup)?"17px":"22px",fontWeight:900,color:"#2D1800",letterSpacing:"-0.02em",lineHeight:1.2,textShadow:"0 1px 3px rgba(255,255,255,.5)"}}>
+                      {isSignup?"예약하기 📋"
+                        :isResult
+                          ?viewMode==="search"?`"${searchText}" 검색 결과`
+                            :viewMode==="category"?selectedCat
+                            :"전체 FAQ"
+                          :"무엇을 도와드릴까요?"}
                     </div>
                   </div>
                 </div>
-                <button type="button" onClick={()=>{ window.close(); }} aria-label="닫기" className="dq-close"
-                  style={{
-                    width:"36px",height:"36px",borderRadius:"50%",
-                    background:"rgba(255,255,255,.5)",border:"1.5px solid rgba(120,80,0,.15)",
-                    display:"flex",alignItems:"center",justifyContent:"center",
-                    fontSize:"18px",color:"#3D2000",cursor:"pointer",flexShrink:0,
-                  }}>×</button>
+                <button type="button" onClick={()=>{window.close();}} aria-label="닫기" className="dq-close" style={{width:"36px",height:"36px",borderRadius:"50%",background:"rgba(255,255,255,.5)",border:"1.5px solid rgba(120,80,0,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",color:"#3D2000",cursor:"pointer",flexShrink:0}}>×</button>
               </div>
-
               {isIntro&&(
                 <div style={{marginTop:"12px",display:"flex",alignItems:"flex-end",gap:"12px"}}>
-                  <div style={{
-                    width:"52px",height:"52px",borderRadius:"50%",
-                    background:"rgba(255,255,255,.9)",
-                    border:"2.5px solid rgba(255,180,0,.5)",
-                    boxShadow:"0 4px 14px rgba(120,80,0,.18)",
-                    display:"flex",alignItems:"center",justifyContent:"center",
-                    flexShrink:0,marginBottom:"12px",
-                    animation:"dq-bob 2s ease-in-out infinite",
-                  }}>
+                  <div style={{width:"52px",height:"52px",borderRadius:"50%",background:"rgba(255,255,255,.9)",border:"2.5px solid rgba(255,180,0,.5)",boxShadow:"0 4px 14px rgba(120,80,0,.18)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginBottom:"12px",animation:"dq-bob 2s ease-in-out infinite"}}>
                     <img src="/blue-char.png" alt="도우미" style={{width:"38px",height:"38px",objectFit:"contain"}}/>
                   </div>
-                  <div style={{
-                    flex:1,background:"#FFFDE7",
-                    borderRadius:"18px 18px 18px 4px",
-                    padding:"12px 16px",
-                    boxShadow:"0 4px 14px rgba(180,140,0,.14)",
-                    border:"1.5px solid rgba(255,220,0,.4)",
-                    position:"relative",
-                  }}>
-                    <p style={{fontSize:"13px",fontWeight:700,color:"#555",margin:"0 0 4px",lineHeight:1.5}}>
-                      안녕하세요! 저는 디키캠프 도우미예요 😊
-                    </p>
-                    <p style={{fontSize:"13px",fontWeight:800,color:"#1C1C1C",margin:0,lineHeight:1.55}}>
-                      궁금한 내용을 <span style={{color:"#FF6B35",background:"rgba(255,107,53,.12)",borderRadius:"6px",padding:"2px 7px",fontWeight:900}}>검색</span>하거나 아래 <span style={{color:"#00A878",background:"rgba(0,168,120,.12)",borderRadius:"6px",padding:"2px 7px",fontWeight:900}}>카테고리</span>를 눌러보세요! 👇
-                    </p>
-                    <div style={{position:"absolute",bottom:"-9px",left:"15px",
-                      width:0,height:0,borderLeft:"9px solid transparent",
-                      borderRight:"5px solid transparent",
-                      borderTop:"9px solid #FFFDE7"}}/>
-                    <div style={{position:"absolute",bottom:"-11px",left:"13.5px",
-                      width:0,height:0,borderLeft:"10px solid transparent",
-                      borderRight:"6px solid transparent",
-                      borderTop:"10px solid rgba(255,220,0,.4)"}}/>
+                  <div style={{flex:1,background:"#FFFDE7",borderRadius:"18px 18px 18px 4px",padding:"12px 16px",boxShadow:"0 4px 14px rgba(180,140,0,.14)",border:"1.5px solid rgba(255,220,0,.4)",position:"relative"}}>
+                    <p style={{fontSize:"13px",fontWeight:700,color:"#555",margin:"0 0 4px",lineHeight:1.5}}>안녕하세요! 저는 디키캠프 도우미예요 😊</p>
+                    <p style={{fontSize:"13px",fontWeight:800,color:"#1C1C1C",margin:0,lineHeight:1.55}}>궁금한 내용을 <span style={{color:"#FF6B35",background:"rgba(255,107,53,.12)",borderRadius:"6px",padding:"2px 7px",fontWeight:900}}>검색</span>하거나 아래 <span style={{color:"#00A878",background:"rgba(0,168,120,.12)",borderRadius:"6px",padding:"2px 7px",fontWeight:900}}>카테고리</span>를 눌러보세요! 👇</p>
+                    <div style={{position:"absolute",bottom:"-9px",left:"15px",width:0,height:0,borderLeft:"9px solid transparent",borderRight:"5px solid transparent",borderTop:"9px solid #FFFDE7"}}/>
+                    <div style={{position:"absolute",bottom:"-11px",left:"13.5px",width:0,height:0,borderLeft:"10px solid transparent",borderRight:"6px solid transparent",borderTop:"10px solid rgba(255,220,0,.4)"}}/>
                   </div>
                 </div>
               )}
-
               {!isSignup&&(
-                <div className="dq-sf"
-                  style={{
-                    display:"flex",alignItems:"center",gap:"10px",
-                    background:"rgba(255,255,255,.95)",
-                    borderRadius:"16px",padding:"11px 16px",
-                    border:"2px solid rgba(255,255,255,.8)",
-                    boxShadow:"0 4px 16px rgba(120,80,0,.10)",
-                    transition:"box-shadow .2s ease,border-color .2s ease",
-                    marginTop:isIntro?"14px":"12px",
-                  }}>
+                <div className="dq-sf" style={{display:"flex",alignItems:"center",gap:"10px",background:"rgba(255,255,255,.95)",borderRadius:"16px",padding:"11px 16px",border:"2px solid rgba(255,255,255,.8)",boxShadow:"0 4px 16px rgba(120,80,0,.10)",transition:"box-shadow .2s ease,border-color .2s ease",marginTop:isIntro?"14px":"12px"}}>
                   <span style={{fontSize:"15px",flexShrink:0,opacity:.55}}>🔍</span>
-                  <input ref={searchEl}
-                    value={searchText}
-                    onChange={e=>handleSearch(e.target.value)}
-                    placeholder={isResult?"다시 검색...":"비용, 일정, 준비물, 주차 검색"}
-                    style={{flex:1,background:"transparent",border:"none",outline:"none",
-                      fontSize:"14px",fontWeight:700,color:"#1C1C1C",fontFamily:"inherit"}}/>
+                  <input ref={searchEl} value={searchText} onChange={e=>handleSearch(e.target.value)} placeholder={isResult?"다시 검색...":"비용, 일정, 준비물, 주차 검색"} style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:"14px",fontWeight:700,color:"#1C1C1C",fontFamily:"inherit"}}/>
                   {searchText&&(
-                    <button type="button" onClick={()=>handleSearch("")}
-                      style={{background:"rgba(0,0,0,.08)",border:"none",borderRadius:"50%",
-                        width:"22px",height:"22px",fontSize:"13px",cursor:"pointer",
-                        display:"flex",alignItems:"center",justifyContent:"center",color:"#666"}}>×</button>
+                    <button type="button" onClick={()=>handleSearch("")} style={{background:"rgba(0,0,0,.08)",border:"none",borderRadius:"50%",width:"22px",height:"22px",fontSize:"13px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#666"}}>×</button>
                   )}
                 </div>
               )}
             </div>
 
+            {/* ── 카테고리 필터 ── */}
             {isResult&&(
               <div style={{flexShrink:0,background:"#FAFAF3",padding:"10px 20px 8px",borderBottom:"1px solid rgba(0,0,0,.06)"}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px"}}>
                   <span style={{fontSize:"10px",fontWeight:900,color:"#ABABBB",letterSpacing:"0.08em"}}>카테고리</span>
-                  <button type="button" onClick={handleAll} className="dq-chip"
-                    style={{padding:"4px 13px",borderRadius:"20px",fontSize:"11px",fontWeight:800,
-                      border:"none",cursor:"pointer",fontFamily:"inherit",
-                      background:viewMode==="all"?"#1C1C1C":"#fff",
-                      color:viewMode==="all"?"#fff":"#6A6A72",
-                      boxShadow:viewMode==="all"?"0 3px 10px rgba(0,0,0,.18)":"0 2px 6px rgba(0,0,0,.07)"}}>전체</button>
+                  <button type="button" onClick={handleAll} className="dq-chip" style={{padding:"4px 13px",borderRadius:"20px",fontSize:"11px",fontWeight:800,border:"none",cursor:"pointer",fontFamily:"inherit",background:viewMode==="all"?"#1C1C1C":"#fff",color:viewMode==="all"?"#fff":"#6A6A72",boxShadow:viewMode==="all"?"0 3px 10px rgba(0,0,0,.18)":"0 2px 6px rgba(0,0,0,.07)"}}>전체</button>
                 </div>
                 <div className="dq-sc" style={{display:"flex",gap:"7px",overflowX:"auto",paddingBottom:"3px"}}>
                   {allCats.map((cat,i)=>{
                     const p=getPalette(i);
                     const active=selectedCat===cat&&viewMode==="category";
                     return(
-                      <button key={cat} type="button" onClick={()=>handleCat(cat)} className="dq-chip"
-                        style={{display:"flex",alignItems:"center",gap:"5px",
-                          padding:"6px 13px",borderRadius:"20px",fontSize:"12px",fontWeight:800,
-                          border:"none",cursor:"pointer",fontFamily:"inherit",
-                          background:active?p.border:"#fff",color:active?"#fff":"#555",
-                          boxShadow:active?`0 4px 12px ${p.border}44`:"0 2px 6px rgba(0,0,0,.07)"}}>
+                      <button key={cat} type="button" onClick={()=>handleCat(cat)} className="dq-chip" style={{display:"flex",alignItems:"center",gap:"5px",padding:"6px 13px",borderRadius:"20px",fontSize:"12px",fontWeight:800,border:"none",cursor:"pointer",fontFamily:"inherit",background:active?p.border:"#fff",color:active?"#fff":"#555",boxShadow:active?`0 4px 12px ${p.border}44`:"0 2px 6px rgba(0,0,0,.07)"}}>
                         {cat}
                       </button>
                     );
@@ -488,8 +324,8 @@ export default function FaqWidget() {
               </div>
             )}
 
-            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"10px 16px 6px",
-              display:"flex",flexDirection:"column",gap:"6px"}}>
+            {/* ── 바디 ── */}
+            <div className="dq-sc" style={{flex:1,overflowY:"auto",padding:"10px 16px 6px",display:"flex",flexDirection:"column",gap:"6px"}}>
 
               {loading&&(
                 <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"14px"}}>
@@ -498,60 +334,32 @@ export default function FaqWidget() {
                 </div>
               )}
 
+              {/* ✅ 신청하기 화면 - 캠프예약 / 대기자예약 */}
               {!loading&&isSignup&&(
                 <div style={{display:"flex",flexDirection:"column",gap:"16px",paddingTop:"4px"}}>
                   <div style={{textAlign:"center",padding:"8px 0 4px"}}>
-                    <div style={{fontSize:"36px",marginBottom:"8px"}}>🔔</div>
-                    <p style={{fontSize:"13px",color:"#6A6A72",lineHeight:1.7,margin:0}}>
-                      디키캠프 소식을 가장 먼저 받아보세요!<br/>
-                      <span style={{color:"#1C1C1C",fontWeight:800}}>원하는 알림을 선택해주세요.</span>
-                    </p>
+                    <div style={{fontSize:"36px",marginBottom:"8px"}}>📋</div>
+                    <p style={{fontSize:"13px",color:"#6A6A72",lineHeight:1.7,margin:0}}>원하는 신청 방법을 선택해주세요.</p>
                   </div>
 
-                  <a href={EARLYBIRD_FORM_URL} target="_blank" rel="noreferrer"
-                    className="dq-signup-btn"
-                    style={{borderColor:"#FFD700",boxShadow:"0 6px 20px rgba(255,215,0,.28)"}}>
-                    <div style={{position:"absolute",top:"-16px",right:"-16px",width:"60px",height:"60px",
-                      borderRadius:"50%",background:"rgba(255,215,0,.12)",pointerEvents:"none"}}/>
-                    <div style={{
-                      width:"52px",height:"52px",borderRadius:"18px",flexShrink:0,
-                      background:"linear-gradient(135deg,#FFD700,#FFC200)",
-                      display:"flex",alignItems:"center",justifyContent:"center",
-                      fontSize:"26px",
-                      boxShadow:"0 4px 12px rgba(255,215,0,.45)",
-                    }}>🐣</div>
+                  <a href={CAMP_RESERVE_URL} target="_blank" rel="noreferrer" className="dq-signup-btn" style={{borderColor:"#FFD700",boxShadow:"0 6px 20px rgba(255,215,0,.28)"}}>
+                    <div style={{position:"absolute",top:"-16px",right:"-16px",width:"60px",height:"60px",borderRadius:"50%",background:"rgba(255,215,0,.12)",pointerEvents:"none"}}/>
+                    <div style={{width:"52px",height:"52px",borderRadius:"18px",flexShrink:0,background:"linear-gradient(135deg,#FFD700,#FFC200)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"26px",boxShadow:"0 4px 12px rgba(255,215,0,.45)"}}>🏕️</div>
                     <div style={{flex:1,textAlign:"left"}}>
-                      <div style={{fontSize:"15px",fontWeight:900,color:"#1C1C1C",marginBottom:"4px"}}>
-                        얼리버드 알림 신청
-                      </div>
-                      <div style={{fontSize:"11px",color:"#888",lineHeight:1.6}}>
-                        캠프 오픈 전 가장 먼저 소식을 받고<br/>특별한 얼리버드 혜택을 누리세요!
-                      </div>
+                      <div style={{fontSize:"15px",fontWeight:900,color:"#1C1C1C",marginBottom:"4px"}}>캠프 예약</div>
+                      <div style={{fontSize:"11px",color:"#888",lineHeight:1.6}}>캠프 상세페이지로 이동합니다.</div>
                     </div>
-                    <div style={{fontSize:"20px",flexShrink:0,color:"#FFD700"}}>→</div>
+                    <div style={{fontSize:"20px",flexShrink:0,color:"#FFD700"}}>&#8250;</div>
                   </a>
 
-                  <a href={SPECIAL_FORM_URL} target="_blank" rel="noreferrer"
-                    className="dq-signup-btn"
-                    style={{borderColor:"#6CC24A",boxShadow:"0 6px 20px rgba(108,194,74,.25)"}}>
-                    <div style={{position:"absolute",top:"-16px",right:"-16px",width:"60px",height:"60px",
-                      borderRadius:"50%",background:"rgba(108,194,74,.10)",pointerEvents:"none"}}/>
-                    <div style={{
-                      width:"52px",height:"52px",borderRadius:"18px",flexShrink:0,
-                      background:"linear-gradient(135deg,#6CC24A,#4EA832)",
-                      display:"flex",alignItems:"center",justifyContent:"center",
-                      fontSize:"26px",
-                      boxShadow:"0 4px 12px rgba(108,194,74,.4)",
-                    }}>🎁</div>
+                  <a href={CAMP_WAITLIST_URL} target="_blank" rel="noreferrer" className="dq-signup-btn" style={{borderColor:"#6CC24A",boxShadow:"0 6px 20px rgba(108,194,74,.25)"}}>
+                    <div style={{position:"absolute",top:"-16px",right:"-16px",width:"60px",height:"60px",borderRadius:"50%",background:"rgba(108,194,74,.10)",pointerEvents:"none"}}/>
+                    <div style={{width:"52px",height:"52px",borderRadius:"18px",flexShrink:0,background:"linear-gradient(135deg,#6CC24A,#4EA832)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"26px",boxShadow:"0 4px 12px rgba(108,194,74,.4)"}}>📝</div>
                     <div style={{flex:1,textAlign:"left"}}>
-                      <div style={{fontSize:"15px",fontWeight:900,color:"#1C1C1C",marginBottom:"4px"}}>
-                        특별 혜택가 알림 신청
-                      </div>
-                      <div style={{fontSize:"11px",color:"#888",lineHeight:1.6}}>
-                        1회 이상 참여하신 분만 신청 가능해요.<br/>기존 참여자 전용 특별가 혜택을 놓치지 마세요!
-                      </div>
+                      <div style={{fontSize:"15px",fontWeight:900,color:"#1C1C1C",marginBottom:"4px"}}>캠프 대기자 예약</div>
+                      <div style={{fontSize:"11px",color:"#888",lineHeight:1.6}}>취소자가 나올 경우 순차적으로 연락드립니다.</div>
                     </div>
-                    <div style={{fontSize:"20px",flexShrink:0,color:"#6CC24A"}}>→</div>
+                    <div style={{fontSize:"20px",flexShrink:0,color:"#6CC24A"}}>&#8250;</div>
                   </a>
 
                   <div style={{display:"flex",justifyContent:"center",gap:"20px",marginTop:"8px",opacity:.7}}>
@@ -562,55 +370,25 @@ export default function FaqWidget() {
                 </div>
               )}
 
+              {/* ── 인트로 화면 ── */}
               {!loading&&isIntro&&(
                 <>
-                  <div style={{
-                    background:"rgba(255,255,255,.82)",
-                    borderRadius:"16px",
-                    border:"1.5px solid rgba(255,215,0,.25)",
-                    padding:"6px 12px 7px",
-                    boxShadow:"0 2px 10px rgba(255,215,0,.09)",
-                  }}>
+                  <div style={{background:"rgba(255,255,255,.82)",borderRadius:"16px",border:"1.5px solid rgba(255,215,0,.25)",padding:"6px 12px 7px",boxShadow:"0 2px 10px rgba(255,215,0,.09)"}}>
                     <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"6px"}}>
                       <span style={{fontSize:"13px"}}>🔥</span>
-                      <span style={{fontSize:"11px",fontWeight:900,color:"#6A5000"}}>
-                        {popularFaqs.length>0 ? "많이 본 질문" : "자주 묻는 질문"}
-                      </span>
+                      <span style={{fontSize:"11px",fontWeight:900,color:"#6A5000"}}>{popularFaqs.length>0?"많이 본 질문":"자주 묻는 질문"}</span>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
-                      {(popularFaqs.length>0 ? popularFaqs.slice(0,2) : faqs.slice(0,2)).map((item,idx)=>(
+                      {(popularFaqs.length>0?popularFaqs.slice(0,2):faqs.slice(0,2)).map((item,idx)=>(
                         <button key={item.id} type="button"
-                          onClick={()=>{
-                            handleCat(item.mainCategory);
-                            setTimeout(()=>handleFaq(item),60);
-                          }}
-                          style={{
-                            background: idx===0?"rgba(255,215,0,.18)":idx===1?"rgba(200,200,200,.15)":"rgba(205,127,50,.12)",
-                            border:`1.5px solid ${idx===0?"rgba(255,215,0,.4)":idx===1?"rgba(180,180,180,.3)":"rgba(205,127,50,.25)"}`,
-                            borderRadius:"12px",
-                            padding:"5px 10px",
-                            textAlign:"left",
-                            cursor:"pointer",fontFamily:"inherit",
-                            display:"flex",alignItems:"center",gap:"8px",
-                            transition:"transform .14s ease,box-shadow .14s ease",
-                          }}
+                          onClick={()=>{handleCat(item.mainCategory);setTimeout(()=>handleFaq(item),60);}}
+                          style={{background:idx===0?"rgba(255,215,0,.18)":idx===1?"rgba(200,200,200,.15)":"rgba(205,127,50,.12)",border:`1.5px solid ${idx===0?"rgba(255,215,0,.4)":idx===1?"rgba(180,180,180,.3)":"rgba(205,127,50,.25)"}`,borderRadius:"12px",padding:"5px 10px",textAlign:"left",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:"8px",transition:"transform .14s ease,box-shadow .14s ease"}}
                           onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 4px 10px rgba(0,0,0,.08)";}}
-                          onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="none";}}
-                        >
-                          <span style={{
-                            fontSize:"11px",fontWeight:900,flexShrink:0,
-                            width:"20px",height:"20px",borderRadius:"50%",
-                            background:idx===0?"#FFD700":idx===1?"#C0C0C0":"#CD7F32",
-                            display:"flex",alignItems:"center",justifyContent:"center",
-                            color:idx===0?"#5A3500":"#fff",
-                          }}>{idx+1}</span>
+                          onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="none";}}>
+                          <span style={{fontSize:"11px",fontWeight:900,flexShrink:0,width:"20px",height:"20px",borderRadius:"50%",background:idx===0?"#FFD700":idx===1?"#C0C0C0":"#CD7F32",display:"flex",alignItems:"center",justifyContent:"center",color:idx===0?"#5A3500":"#fff"}}>{idx+1}</span>
                           <span style={{flex:1,fontSize:"12px",fontWeight:700,color:"#2A2A2A",lineHeight:1.4}}>{item.question}</span>
-                          {(popularFaqs.length>0 && clickCounts[item.id]>0) && (
-                            <span style={{fontSize:"10px",fontWeight:800,color:"#FF6B35",
-                              background:"rgba(255,107,53,.10)",borderRadius:"8px",
-                              padding:"1px 6px",flexShrink:0}}>
-                              {clickCounts[item.id]}회
-                            </span>
+                          {(popularFaqs.length>0&&clickCounts[item.id]>0)&&(
+                            <span style={{fontSize:"10px",fontWeight:800,color:"#FF6B35",background:"rgba(255,107,53,.10)",borderRadius:"8px",padding:"1px 6px",flexShrink:0}}>{clickCounts[item.id]}회</span>
                           )}
                         </button>
                       ))}
@@ -618,144 +396,65 @@ export default function FaqWidget() {
                   </div>
 
                   <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"5px"}}>
-                    <button type="button" onClick={()=>setViewMode("signup")}
-                      className="dq-cat"
-                      style={{
-                        background:"linear-gradient(160deg,#FFE860,#FFD700)",
-                        border:"2px solid #E6C400",
-                        borderRadius:"20px",padding:"10px 8px 0",
-                        textAlign:"center",cursor:"pointer",fontFamily:"inherit",
-                        display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",
-                        position:"relative",overflow:"hidden",height:"96px",
-                        boxShadow:"0 6px 20px rgba(255,215,0,.40)",
-                      }}>
-                      <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
-                        borderRadius:"50%",background:"rgba(255,255,255,.20)",pointerEvents:"none"}}/>
-                      <div style={{fontSize:"13px",fontWeight:900,color:"#5A3500",fontFamily:"'Nunito','Noto Sans KR',sans-serif",lineHeight:1.3,
-                        wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>
-                        신청하기
-                      </div>
-                      <div style={{width:"28px",height:"3px",borderRadius:"2px",
-                        background:"rgba(120,53,15,.40)",zIndex:1}}/>
-                      <div style={{width:"100%",display:"flex",justifyContent:"center",
-                        alignItems:"flex-end",height:"28px",marginTop:"auto"}}>
-                        <img src="/snake-char.png" alt="신청" className="dq-char-idle"
-                          style={{width:"40px",height:"40px",objectFit:"contain",
-                            filter:"drop-shadow(0 -2px 6px rgba(0,0,0,.14))"}}/>
+                    <button type="button" onClick={()=>setViewMode("signup")} className="dq-cat" style={{background:"linear-gradient(160deg,#FFE860,#FFD700)",border:"2px solid #E6C400",borderRadius:"20px",padding:"10px 8px 0",textAlign:"center",cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",position:"relative",overflow:"hidden",height:"96px",boxShadow:"0 6px 20px rgba(255,215,0,.40)"}}>
+                      <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",borderRadius:"50%",background:"rgba(255,255,255,.20)",pointerEvents:"none"}}/>
+                      <div style={{fontSize:"13px",fontWeight:900,color:"#5A3500",lineHeight:1.3,wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>신청하기</div>
+                      <div style={{width:"28px",height:"3px",borderRadius:"2px",background:"rgba(120,53,15,.40)",zIndex:1}}/>
+                      <div style={{width:"100%",display:"flex",justifyContent:"center",alignItems:"flex-end",height:"28px",marginTop:"auto"}}>
+                        <img src="/snake-char.png" alt="신청" className="dq-char-idle" style={{width:"40px",height:"40px",objectFit:"contain",filter:"drop-shadow(0 -2px 6px rgba(0,0,0,.14))"}}/>
                       </div>
                     </button>
-
                     {visibleCats.map((cat,i)=>{
                       const p=getPalette(i);
                       const charImg=getCatChar(cat);
                       return(
-                        <button key={cat} type="button" onClick={()=>handleCat(cat)}
-                          className="dq-cat"
-                          style={{
-                            background:p.bg,
-                            border:`2px solid ${p.border}`,
-                            borderRadius:"20px",padding:"14px 10px 0",
-                            textAlign:"center",
-                            boxShadow:`0 4px 16px ${p.border}44`,
-                            fontFamily:"inherit",cursor:"pointer",
-                            display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",
-                            position:"relative",overflow:"hidden",height:"96px",
-                          }}>
-                          <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",
-                            borderRadius:"50%",background:"rgba(255,255,255,.28)",pointerEvents:"none"}}/>
-                          <div style={{fontSize:"13px",fontWeight:900,color:p.text,fontFamily:"'Nunito','Noto Sans KR',sans-serif",
-                            lineHeight:1.3,wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>
-                            {cat}
-                          </div>
-                          <div style={{width:"28px",height:"3px",borderRadius:"2px",
-                            background:`${p.border}`,zIndex:1}}/>
-                          <div style={{width:"100%",display:"flex",justifyContent:"center",
-                            alignItems:"flex-end",height:"28px",marginTop:"auto"}}>
-                            <img src={charImg} alt={cat} className="dq-char-idle"
-                              style={{width:"40px",height:"40px",objectFit:"contain",
-                                filter:`drop-shadow(0 -2px 6px ${p.border}66)`}}/>
+                        <button key={cat} type="button" onClick={()=>handleCat(cat)} className="dq-cat" style={{background:p.bg,border:`2px solid ${p.border}`,borderRadius:"20px",padding:"14px 10px 0",textAlign:"center",boxShadow:`0 4px 16px ${p.border}44`,fontFamily:"inherit",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:"6px",position:"relative",overflow:"hidden",height:"96px"}}>
+                          <div style={{position:"absolute",top:"-10px",left:"-10px",width:"44px",height:"44px",borderRadius:"50%",background:"rgba(255,255,255,.28)",pointerEvents:"none"}}/>
+                          <div style={{fontSize:"13px",fontWeight:900,color:p.text,lineHeight:1.3,wordBreak:"keep-all",textAlign:"center",zIndex:1,padding:"0 2px"}}>{cat}</div>
+                          <div style={{width:"28px",height:"3px",borderRadius:"2px",background:p.border,zIndex:1}}/>
+                          <div style={{width:"100%",display:"flex",justifyContent:"center",alignItems:"flex-end",height:"28px",marginTop:"auto"}}>
+                            <img src={charImg} alt={cat} className="dq-char-idle" style={{width:"40px",height:"40px",objectFit:"contain",filter:`drop-shadow(0 -2px 6px ${p.border}66)`}}/>
                           </div>
                         </button>
                       );
                     })}
                   </div>
 
-                  <div style={{
-                    background:"linear-gradient(135deg,rgba(255,215,0,.08),rgba(108,194,74,.06))",
-                    borderRadius:"20px",padding:"10px 20px",
-                    display:"flex",alignItems:"center",justifyContent:"space-around",
-                    border:"1.5px dashed rgba(255,215,0,.35)",
-                    position:"relative",overflow:"hidden",
-                    minHeight:"52px",margin:"0",
-                  }}>
-                    <div style={{position:"absolute",left:"-20px",bottom:"-20px",width:"80px",height:"80px",
-                      borderRadius:"50%",background:"rgba(255,215,0,.08)",pointerEvents:"none"}}/>
-                    <div style={{position:"absolute",right:"-16px",top:"-16px",width:"60px",height:"60px",
-                      borderRadius:"50%",background:"rgba(108,194,74,.08)",pointerEvents:"none"}}/>
-                    <div style={{display:"flex",alignItems:"flex-end",gap:"0"}}>
-                      <img src="/flower-char.png" alt="" style={{width:"54px",height:"54px",objectFit:"contain",
-                        transform:"rotate(-8deg) translateY(4px)",filter:"drop-shadow(0 2px 6px rgba(0,0,0,.10))"}}/>
-                    </div>
+                  <div style={{background:"linear-gradient(135deg,rgba(255,215,0,.08),rgba(108,194,74,.06))",borderRadius:"20px",padding:"10px 20px",display:"flex",alignItems:"center",justifyContent:"space-around",border:"1.5px dashed rgba(255,215,0,.35)",position:"relative",overflow:"hidden",minHeight:"52px"}}>
+                    <div style={{position:"absolute",left:"-20px",bottom:"-20px",width:"80px",height:"80px",borderRadius:"50%",background:"rgba(255,215,0,.08)",pointerEvents:"none"}}/>
+                    <div style={{position:"absolute",right:"-16px",top:"-16px",width:"60px",height:"60px",borderRadius:"50%",background:"rgba(108,194,74,.08)",pointerEvents:"none"}}/>
+                    <img src="/flower-char.png" alt="" style={{width:"54px",height:"54px",objectFit:"contain",transform:"rotate(-8deg) translateY(4px)",filter:"drop-shadow(0 2px 6px rgba(0,0,0,.10))"}}/>
                     <div style={{textAlign:"center"}}>
-                      <div style={{fontSize:"13px",fontWeight:800,color:"#5A3A00",lineHeight:1.5}}>
-                        더 궁금한 게 있으신가요?
-                      </div>
+                      <div style={{fontSize:"13px",fontWeight:800,color:"#5A3A00",lineHeight:1.5}}>더 궁금한 게 있으신가요?</div>
                       <div style={{fontSize:"11px",color:"#888",marginTop:"2px"}}>아래 버튼으로 문의해보세요 😊</div>
                     </div>
-                    <div style={{display:"flex",alignItems:"flex-end",gap:"0"}}>
-                      <img src="/dog-char.png" alt="" style={{width:"54px",height:"54px",objectFit:"contain",
-                        transform:"rotate(8deg) translateY(4px)",filter:"drop-shadow(0 2px 6px rgba(0,0,0,.10))"}}/>
-                    </div>
+                    <img src="/dog-char.png" alt="" style={{width:"54px",height:"54px",objectFit:"contain",transform:"rotate(8deg) translateY(4px)",filter:"drop-shadow(0 2px 6px rgba(0,0,0,.10))"}}/>
                   </div>
 
-                  <div style={{
-                    background:"linear-gradient(135deg,#4EA832,#3A8A22)",
-                    borderRadius:"18px",padding:"14px 18px",
-                    display:"flex",alignItems:"center",justifyContent:"space-between",
-                    boxShadow:"0 6px 20px rgba(78,168,50,.30)",gap:"12px",
-                    position:"relative",overflow:"hidden",marginTop:"4px",flexWrap:"wrap",
-                  }}>
-                    <div style={{position:"absolute",right:"-12px",top:"-12px",width:"60px",height:"60px",
-                      borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
-                    <div style={{position:"absolute",right:"76px",bottom:"-8px",opacity:.20,pointerEvents:"none"}}>
-                      <img src="/flower-char.png" alt="" style={{width:"36px",height:"36px",objectFit:"contain"}}/>
-                    </div>
+                  <div style={{background:"linear-gradient(135deg,#4EA832,#3A8A22)",borderRadius:"18px",padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 6px 20px rgba(78,168,50,.30)",gap:"12px",position:"relative",overflow:"hidden",marginTop:"4px",flexWrap:"wrap"}}>
+                    <div style={{position:"absolute",right:"-12px",top:"-12px",width:"60px",height:"60px",borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
                     <div style={{flex:"1 1 55%",minWidth:0}}>
                       <div style={{fontSize:"12px",fontWeight:900,color:"#fff",marginBottom:"3px"}}>원하는 답변이 없나요?</div>
-                      <div style={{fontSize:"11px",color:"rgba(255,255,255,.90)",lineHeight:1.55,fontWeight:600}}>
-                        문의사항 남겨주시면<br/>담당자가 순차적으로 답변드려요 😊
-                      </div>
+                      <div style={{fontSize:"11px",color:"rgba(255,255,255,.90)",lineHeight:1.55,fontWeight:600}}>문의사항 남겨주시면<br/>담당자가 순차적으로 답변드려요 😊</div>
                     </div>
-                    <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer"
-                      style={{
-                        background:"#FFD700",color:"#1A1A00",borderRadius:"12px",
-                        padding:"10px 16px",fontSize:"12px",fontWeight:900,textDecoration:"none",
-                        flex:"0 0 auto",boxShadow:"0 3px 10px rgba(255,215,0,.40)",whiteSpace:"nowrap",
-                      }}>
-                      문의하기 →
+                    <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer" style={{background:"#FFD700",color:"#1A1A00",borderRadius:"12px",padding:"10px 16px",fontSize:"12px",fontWeight:900,textDecoration:"none",flex:"0 0 auto",boxShadow:"0 3px 10px rgba(255,215,0,.40)",whiteSpace:"nowrap"}}>
+                      문의하기 &#8250;
                     </a>
                   </div>
                 </>
               )}
 
+              {/* ── 검색 결과 없음 ── */}
               {!loading&&isResult&&visibleFaqs.length===0&&(
-                <div style={{flex:1,display:"flex",flexDirection:"column",
-                  alignItems:"center",justifyContent:"center",
-                  background:"rgba(255,255,255,.7)",borderRadius:"24px",padding:"44px 24px",
-                  boxShadow:"0 4px 16px rgba(0,0,0,.05)"}}>
-                  <img src="/snake-char.png" alt="" style={{width:"72px",height:"72px",objectFit:"contain",
-                    marginBottom:"14px",filter:"drop-shadow(0 4px 8px rgba(0,0,0,.12))"}}/>
+                <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"rgba(255,255,255,.7)",borderRadius:"24px",padding:"44px 24px",boxShadow:"0 4px 16px rgba(0,0,0,.05)"}}>
+                  <img src="/snake-char.png" alt="" style={{width:"72px",height:"72px",objectFit:"contain",marginBottom:"14px",filter:"drop-shadow(0 4px 8px rgba(0,0,0,.12))"}}/>
                   <div style={{fontSize:"16px",fontWeight:900,color:"#1C1C1C",marginBottom:"8px"}}>검색 결과가 없어요</div>
-                  <div style={{fontSize:"12px",color:"#6A6A72",lineHeight:1.8,marginBottom:"24px",textAlign:"center"}}>
-                    다른 단어로 검색하거나<br/>카테고리를 선택해보세요
-                  </div>
-                  <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer"
-                    className="dq-gbtn" style={{padding:"12px 28px",fontSize:"13px",fontWeight:900}}>
-                    문의 남기기
-                  </a>
+                  <div style={{fontSize:"12px",color:"#6A6A72",lineHeight:1.8,marginBottom:"24px",textAlign:"center"}}>다른 단어로 검색하거나<br/>카테고리를 선택해보세요</div>
+                  <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer" className="dq-gbtn" style={{padding:"12px 28px",fontSize:"13px",fontWeight:900}}>문의 남기기</a>
                 </div>
               )}
 
+              {/* ── FAQ 목록 ── */}
               {!loading&&isResult&&visibleFaqs.length>0&&(
                 <>
                   {visibleFaqs.map((item)=>{
@@ -766,60 +465,27 @@ export default function FaqWidget() {
                     const preview=item.answer.replace(/\n/g," ").slice(0,65);
                     return(
                       <div key={item.id}>
-                        <div className="dq-faq-item dq-chat-q"
-                          onClick={()=>handleFaq(item)}
-                          style={{
-                            boxShadow:active?`0 6px 20px ${p.border}44`:"0 2px 10px rgba(0,0,0,.05)",
-                            borderColor:active?p.border:"#E8E8E8",
-                          }}>
+                        <div className="dq-faq-item dq-chat-q" onClick={()=>handleFaq(item)} style={{boxShadow:active?`0 6px 20px ${p.border}44`:"0 2px 10px rgba(0,0,0,.05)",borderColor:active?p.border:"#E8E8E8"}}>
                           {label&&(
-                            <span style={{display:"inline-flex",alignItems:"center",gap:"4px",
-                              background:p.bg,color:p.text,
-                              borderRadius:"8px",padding:"2px 9px",fontSize:"10px",fontWeight:900,
-                              marginBottom:"7px",border:`1.5px solid ${p.border}44`}}>
-                              {label}
-                            </span>
+                            <span style={{display:"inline-flex",alignItems:"center",gap:"4px",background:p.bg,color:p.text,borderRadius:"8px",padding:"2px 9px",fontSize:"10px",fontWeight:900,marginBottom:"7px",border:`1.5px solid ${p.border}44`}}>{label}</span>
                           )}
                           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"10px"}}>
-                            <p style={{fontSize:"13px",fontWeight:800,color:"#1C1C1C",lineHeight:1.65,margin:0,flex:1}}>
-                              {item.question}
-                            </p>
-                            <div style={{
-                              width:"26px",height:"26px",borderRadius:"50%",flexShrink:0,
-                              background:active?p.border:"#F0EFE8",
-                              display:"flex",alignItems:"center",justifyContent:"center",
-                              fontSize:"15px",fontWeight:900,
-                              color:active?"#fff":"#ABABBB",
-                              transform:active?"rotate(45deg)":"rotate(0)",
-                              transition:"all .22s cubic-bezier(.34,1.56,.64,1)",
-                            }}>+</div>
+                            <p style={{fontSize:"13px",fontWeight:800,color:"#1C1C1C",lineHeight:1.65,margin:0,flex:1}}>{item.question}</p>
+                            <div style={{width:"26px",height:"26px",borderRadius:"50%",flexShrink:0,background:active?p.border:"#F0EFE8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"15px",fontWeight:900,color:active?"#fff":"#ABABBB",transform:active?"rotate(45deg)":"rotate(0)",transition:"all .22s cubic-bezier(.34,1.56,.64,1)"}}>+</div>
                           </div>
                           {!active&&(
-                            <p style={{fontSize:"11px",color:"#6A6A72",lineHeight:1.6,margin:"4px 0 0",
-                              overflow:"hidden"}}>
-                              {preview}{item.answer.length>65?"...":""}
-                            </p>
+                            <p style={{fontSize:"11px",color:"#6A6A72",lineHeight:1.6,margin:"4px 0 0",overflow:"hidden"}}>{preview}{item.answer.length>65?"...":""}</p>
                           )}
                         </div>
-
                         {active&&(
                           <div className="dq-ans" style={{marginTop:"8px",display:"flex",justifyContent:"flex-end",gap:"8px",alignItems:"flex-start"}}>
                             <div className="dq-chat-a" style={{flex:1,maxWidth:"92%"}}>
-                              <p style={{fontSize:"13px",color:"#444",lineHeight:1.9,margin:0,whiteSpace:"pre-line"}}>
-                                {item.answer}
-                              </p>
+                              <p style={{fontSize:"13px",color:"#444",lineHeight:1.9,margin:0,whiteSpace:"pre-line"}}>{item.answer}</p>
                               {item.contact&&(
-                                <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer"
-                                  className="dq-gbtn"
-                                  style={{marginTop:"12px",padding:"9px 20px",fontSize:"12px",fontWeight:900}}>
-                                  문의 남기기 →
-                                </a>
+                                <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer" className="dq-gbtn" style={{marginTop:"12px",padding:"9px 20px",fontSize:"12px",fontWeight:900}}>문의 남기기 &#8250;</a>
                               )}
                             </div>
-                            <div className="dq-char"
-                              style={{width:"30px",height:"30px",marginTop:"4px",flexShrink:0,
-                                border:"1.5px solid rgba(255,215,0,.38)",
-                                boxShadow:"0 2px 8px rgba(255,215,0,.24)"}}>
+                            <div className="dq-char" style={{width:"30px",height:"30px",marginTop:"4px",flexShrink:0,border:"1.5px solid rgba(255,215,0,.38)",boxShadow:"0 2px 8px rgba(255,215,0,.24)"}}>
                               <img src="/main-char.png" alt="답변" style={{width:"20px",height:"20px",objectFit:"contain"}}/>
                             </div>
                           </div>
@@ -827,28 +493,14 @@ export default function FaqWidget() {
                       </div>
                     );
                   })}
-
-                  <div style={{
-                    background:"linear-gradient(135deg,#4EA832,#3A8A22)",
-                    borderRadius:"20px",padding:"18px 20px 20px",
-                    display:"flex",alignItems:"center",justifyContent:"space-between",
-                    boxShadow:"0 6px 20px rgba(78,168,50,.30)",gap:"14px",
-                    position:"relative",overflow:"visible",
-                    marginBottom:"8px",flexShrink:0,
-                  }}>
-                    <div style={{position:"absolute",right:"-14px",top:"-14px",width:"70px",height:"70px",
-                      borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
+                  <div style={{background:"linear-gradient(135deg,#4EA832,#3A8A22)",borderRadius:"20px",padding:"18px 20px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 6px 20px rgba(78,168,50,.30)",gap:"14px",position:"relative",overflow:"visible",marginBottom:"8px",flexShrink:0}}>
+                    <div style={{position:"absolute",right:"-14px",top:"-14px",width:"70px",height:"70px",borderRadius:"50%",background:"rgba(255,255,255,.10)",pointerEvents:"none"}}/>
                     <div style={{flex:1}}>
                       <div style={{fontSize:"14px",fontWeight:900,color:"#fff",marginBottom:"3px"}}>원하는 답변이 없나요?</div>
                       <div style={{fontSize:"11px",color:"rgba(255,255,255,.88)",lineHeight:1.6}}>문의사항을 남겨주시면 순차적으로 답변드려요.</div>
                     </div>
-                    <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer"
-                      style={{
-                        background:"#FFD700",color:"#1A1A00",borderRadius:"14px",
-                        padding:"11px 20px",fontSize:"13px",fontWeight:900,textDecoration:"none",
-                        flexShrink:0,boxShadow:"0 4px 14px rgba(255,215,0,.44)",whiteSpace:"nowrap",
-                      }}>
-                      문의하기 →
+                    <a href={GOOGLE_FORM_URL} target="_blank" rel="noreferrer" style={{background:"#FFD700",color:"#1A1A00",borderRadius:"14px",padding:"11px 20px",fontSize:"13px",fontWeight:900,textDecoration:"none",flexShrink:0,boxShadow:"0 4px 14px rgba(255,215,0,.44)",whiteSpace:"nowrap"}}>
+                      문의하기 &#8250;
                     </a>
                   </div>
                 </>
