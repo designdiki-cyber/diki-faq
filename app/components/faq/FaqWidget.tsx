@@ -17,8 +17,8 @@ type ViewMode = "intro" | "search" | "category" | "all" | "signup";
 
 const GOOGLE_FORM_URL   = "https://forms.gle/h8Er3uB9um6sC6Tw5";
 const APPS_SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbyvhqZGiieK61MZXmH3La52_L_re4m2DtuWCnFmlfTrPO4kAiZwWlmSzj-aFpIT2LWS/exec";
-const CAMP_RESERVE_URL  = "https://www.dikidiki.co.kr/post2_detail.do?seq=103871&type=2";
-const CAMP_WAITLIST_URL = "https://forms.gle/6wc3tgQQVKL9TYD17";
+const CAMP_RESERVE_URL  = "https://www.dikidiki.co.kr/post2_detail.do?seq=104401&type=2";
+const CAMP_WAITLIST_URL = "https://forms.gle/uCUeL8Nh32ie3YyY6";
 
 const HIDDEN_CATEGORIES = ["직접 문의","문의접수","기타 문의","1:1 문의","문의남기기"];
 
